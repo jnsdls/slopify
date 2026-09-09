@@ -9,7 +9,7 @@ const CLIENT_ID = 'a768335a56b648d4a6d11d945d029ce4';
 const REDIRECT = 'http://127.0.0.1:8888/callback';
 const SCOPES = 'streaming user-read-email user-read-private user-modify-playback-state user-read-playback-state';
 const TOKEN_FILE = path.join(app.getPath('userData'), 'spike-token.json');
-const LOG = path.join(__dirname, 'spike.log');
+const LOG = path.join(app.getPath('userData'), 'spike.log');
 
 function log(...a) {
   const line = `${new Date().toISOString()} ${a.map(x => typeof x === 'string' ? x : JSON.stringify(x)).join(' ')}`;

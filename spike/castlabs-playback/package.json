@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "package": "./package.sh"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -12,6 +13,26 @@
     ]
   },
   "devDependencies": {
-    "electron": "github:castlabs/electron-releases#v44.1.0+wvcus"
+    "electron": "github:castlabs/electron-releases#v44.1.0+wvcus",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "gg.nebula.slopify.spike",
+    "productName": "slopify-spike",
+    "electronDist": "node_modules/electron/dist",
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html"
+    ],
+    "afterPack": "./afterPack.js",
+    "mac": {
+      "target": "dir",
+      "identity": null,
+      "category": "public.app-category.music"
+    },
+    "directories": {
+      "output": "out"
+    }
   }
 }
