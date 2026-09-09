@@ -1,0 +1,48 @@
+import crypto from 'node:crypto';
+
+export const CLIENT_ID = 'a768335a56b648d4a6d11d945d029ce4';
+export const REDIRECT_URI = 'http://127.0.0.1:8888/callback';
+export const CALLBACK_PORT = 8888;
+export const SCOPES: readonly string[] = [
+  'streaming',
+  'user-read-email',
+  'user-read-private',
+  'user-read-playback-state',
+  'user-modify-playback-state',
+  'playlist-read-private',
+  'playlist-read-collaborative',
+];
+
+const AUTHORIZE_ENDPOINT = 'https://accounts.spotify.com/authorize';
+
+export type RandomBytes = (size: number) => Buffer;
+
+export function computeChallenge(verifier: string): string {
+  return crypto.createHash('sha256').update(verifier).digest('base64url');
+}
+
+export function generatePkce(randomBytes: RandomBytes = crypto.randomBytes): {
+  verifier: string;
+  challenge: string;
+  state: string;
+} {
+  const verifier = randomBytes(64).toString('base64url');
+  return {
+    verifier,
+    challenge: computeChallenge(verifier),
+    state: randomBytes(16).toString('base64url'),
+  };
+}
+
+export function buildAuthorizeUrl(p: { challenge: string; state: string }): string {
+  const params = new URLSearchParams({
+    client_id: CLIENT_ID,
+    response_type: 'code',
+    redirect_uri: REDIRECT_URI,
+    scope: SCOPES.join(' '),
+    code_challenge_method: 'S256',
+    code_challenge: p.challenge,
+    state: p.state,
+  });
+  return `${AUTHORIZE_ENDPOINT}?${params}`;
+}
