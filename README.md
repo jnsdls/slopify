@@ -32,6 +32,8 @@ pnpm package    # builds dist/mac-arm64/slopify.app
 cp -R dist/mac-arm64/slopify.app /Applications/
 ```
 
+Each build is ad-hoc signed, so macOS sees every new build as a new app. The first time a build plays audio, macOS may ask for microphone access once. slopify never captures audio, so "Don't Allow" is the right answer, and that build will not ask again.
+
 `pnpm package` refreshes the EVS token, builds with electron-vite, packages with electron-builder, VMP-signs, then ad-hoc codesigns. Electron's fuses stay stock, because the EVS server refuses to sign a binary with flipped fuses. One consequence: if `ELECTRON_RUN_AS_NODE` is set in the environment that launches the app, the binary starts as plain Node and exits. Finder and the login item never set it; a shell that does needs `env -u ELECTRON_RUN_AS_NODE open /Applications/slopify.app`. The EVS token expires monthly, and a stale token is the usual reason a build fails. There is no DMG, no notarisation and no updater. Rebuild and copy again.
 
 `pnpm check` runs the type check, ESLint and the unit tests.
