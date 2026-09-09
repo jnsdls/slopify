@@ -65,6 +65,12 @@ body {
   display: none !important;
 }
 
+/* Native feel: no focus rings anywhere. Keyboard shortcuts work without focus moving. */
+:focus,
+:focus-visible {
+  outline: none;
+}
+
 button {
   font: inherit;
   color: inherit;
@@ -154,7 +160,7 @@ a {
 }
 
 .title[href]:hover {
-  text-decoration: underline;
+  opacity: 0.8;
 }
 
 .artists {
@@ -163,7 +169,7 @@ a {
 }
 
 .artists a:hover {
-  text-decoration: underline;
+  color: var(--fg);
 }
 
 .progress-area {
@@ -491,7 +497,6 @@ input[type="range"]::-webkit-slider-thumb {
 
 .who .link {
   color: inherit;
-  text-decoration: underline;
 }
 
 .who .link:hover {

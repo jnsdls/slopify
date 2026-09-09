@@ -104,7 +104,7 @@ export class SpotifyApi {
     const text = await res.text();
     return {
       status: res.status,
-      json: text ? (JSON.parse(text) as T) : null,
+      json: parseJson<T>(text),
       retryAfter: res.headers.get('Retry-After'),
     };
   }
@@ -113,4 +113,14 @@ export class SpotifyApi {
 function retryAfterMs(header: string | null): number {
   const seconds = Number(header);
   return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : 1000;
+}
+
+// Spotify answers some PUTs (shuffle, repeat) with 200 and a bare token where the docs say 204.
+function parseJson<T>(text: string): T | null {
+  if (!text) return null;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return null;
+  }
 }

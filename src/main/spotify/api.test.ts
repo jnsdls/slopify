@@ -56,6 +56,11 @@ describe('SpotifyApi.request', () => {
     expect(await api.request('PUT', '/me/player/shuffle')).toEqual({ status: 200, json: null });
   });
 
+  it('gives json null for a 200 whose body is not JSON', async () => {
+    const { api } = make([{ status: 200, body: 'Hl7vflUgbZ' }]);
+    expect(await api.request('PUT', '/me/player/repeat')).toEqual({ status: 200, json: null });
+  });
+
   it('resolves any 2xx', async () => {
     const { api } = make([{ status: 204 }]);
     expect(await api.request('PUT', '/me/player/play')).toEqual({ status: 204, json: null });
