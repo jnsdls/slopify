@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PROTOTYPE: slopify dropdown variants</title>
+<!--
+  Three variants of the slopify menu-bar dropdown, switchable via ?variant=A|B|C
+  and the floating bar at the bottom. Throwaway. Not part of the app.
+  Issue: https://github.com/jnsdls/slopify/issues/9
+
+  A  Player first: big artwork, transport, Source row that expands into the picker.
+  B  Source first: the dropdown is the playlist list; a mini player is pinned at the bottom.
+  C  Native menu: NSMenu-style text rows, monochrome, the way a stock menu-bar app looks.
+-->
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: #2b2b2e url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Crect width='40' height='40' fill='%232b2b2e'/%3E%3Ccircle cx='20' cy='20' r='1' fill='%233c3c40'/%3E%3C/svg%3E");
+    font: 13px/1.35 -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif; color: #f2f2f2;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* fake macOS menu bar so the dropdown has something to hang from */
+  .menubar { height: 24px; background: rgba(30,30,32,.9); border-bottom: 1px solid #111; display: flex; justify-content: flex-end; align-items: center; padding-right: 180px; gap: 14px; font-size: 12px; color: #ddd; }
+  .menubar .item { opacity: .85; }
+  .menubar .item.slopify { background: rgba(255,255,255,.18); border-radius: 4px; padding: 1px 6px; opacity: 1; }
+  .stage { display: flex; justify-content: flex-end; padding-right: 180px; }
+  .dropdown { margin-top: 6px; background: rgba(40,40,44,.92); backdrop-filter: blur(30px); border: 1px solid rgba(255,255,255,.12); border-radius: 10px; box-shadow: 0 10px 40px rgba(0,0,0,.5); overflow: hidden; }
+
+  /* shared bits */
+  .art { border-radius: 6px; background: linear-gradient(135deg,#f0a35e,#c0397b 55%,#3a2a6e); flex: none; }
+  .art.pl1 { background: linear-gradient(135deg,#5ec4f0,#3a67c0 60%,#1d2f5e); }
+  .art.pl2 { background: linear-gradient(135deg,#8fe08a,#2d8a5a 60%,#12402b); }
+  .art.pl3 { background: linear-gradient(135deg,#f0e35e,#c07a39 60%,#5e2f1d); }
+  .art.pl4 { background: linear-gradient(135deg,#d08af0,#7a39c0 60%,#2f1d5e); }
+  .art.liked { background: linear-gradient(135deg,#4a3fd6,#c6c1e8); display:flex; align-items:center; justify-content:center; }
+  .art.liked::after { content: "♥"; color: #fff; font-size: 60%; }
+  .muted { color: #9a9a9e; }
+  .ellip { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  input[type=range] { -webkit-appearance: none; height: 4px; border-radius: 2px; background: linear-gradient(to right, #fff 0 var(--v,60%), rgba(255,255,255,.2) var(--v,60%)); flex: 1; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%; background: #fff; }
+  input[type=text] { font: inherit; color: inherit; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12); border-radius: 6px; padding: 5px 8px; width: 100%; outline: none; }
+  input[type=text]:focus { border-color: rgba(255,255,255,.4); }
+  .icon { width: 18px; height: 18px; fill: currentColor; display: block; }
+  .spotify { display: inline-flex; align-items: center; gap: 5px; color: #1ed760; font-size: 11px; font-weight: 500; text-decoration: none; }
+  .spotify svg { width: 16px; height: 16px; fill: currentColor; }
+  .row { display: flex; align-items: center; gap: 10px; padding: 6px 12px; }
+  .row.click:hover { background: rgba(255,255,255,.08); }
+  .check { width: 14px; text-align: center; color: #fff; }
+  .progress { height: 3px; background: rgba(255,255,255,.18); border-radius: 2px; overflow: hidden; }
+  .progress i { display: block; height: 100%; width: 38%; background: #fff; }
+
+  /* ===== A: player first ===== */
+  .A { width: 300px; }
+  .A .np { padding: 14px 14px 10px; }
+  .A .np .art { width: 272px; height: 272px; border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.4); }
+  .A .np .meta { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; gap: 8px; }
+  .A .np .title { font-size: 15px; font-weight: 600; }
+  .A .np .progress { margin-top: 8px; }
+  .A .times { display: flex; justify-content: space-between; font-size: 10px; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .A .transport { display: flex; align-items: center; justify-content: center; gap: 22px; padding: 4px 0 10px; }
+  .A .transport .play { width: 40px; height: 40px; border-radius: 50%; background: #fff; color: #000; display: flex; align-items: center; justify-content: center; }
+  .A .transport .play .icon { width: 20px; height: 20px; }
+  .A .transport .skip .icon { width: 22px; height: 22px; }
+  .A .transport .ghost { width: 22px; visibility: hidden; }
+  .A .vol { display: flex; align-items: center; gap: 8px; padding: 0 14px 12px; }
+  .A .vol .icon { width: 14px; height: 14px; color: #9a9a9e; }
+  .A .sourcebar { border-top: 1px solid rgba(255,255,255,.1); }
+  .A .sourcebar .current { padding: 10px 14px; display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; }
+  .A .sourcebar .current:hover { background: rgba(255,255,255,.06); }
+  .A .sourcebar .current .art { width: 32px; height: 32px; border-radius: 4px; }
+  .A .sourcebar .current .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }
+  .A .sourcebar .chev { margin-left: auto; transition: transform .15s; }
+  .A.open .sourcebar .chev { transform: rotate(180deg); }
+  .A .picker { display: none; max-height: 260px; overflow: auto; border-top: 1px solid rgba(255,255,255,.08); }
+  .A.open .picker { display: block; }
+  .A .picker .row .art { width: 28px; height: 28px; border-radius: 4px; }
+  .A .picker .row .sub { font-size: 11px; }
+  .A .picker .paste { padding: 8px 12px 10px; border-top: 1px solid rgba(255,255,255,.08); }
+  .A .footer { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; border-top: 1px solid rgba(255,255,255,.1); font-size: 11px; }
+
+  /* ===== B: source first ===== */
+  .B { width: 320px; display: flex; flex-direction: column; max-height: 520px; }
+  .B .search { padding: 10px 10px 6px; }
+  .B .search input { padding: 6px 10px 6px 28px; background: rgba(255,255,255,.1) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23999'%3E%3Cpath d='M15.5 14h-.8l-.3-.3A6.5 6.5 0 1 0 9.5 16a6.5 6.5 0 0 0 4.2-1.6l.3.3v.8l5 5 1.5-1.5-5-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z'/%3E%3C/svg%3E") 8px center / 14px no-repeat; }
+  .B .list { overflow: auto; flex: 1; padding-bottom: 6px; }
+  .B .section { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: #8a8a8e; padding: 8px 12px 2px; }
+  .B .row .art { width: 36px; height: 36px; border-radius: 5px; }
+  .B .row .name { font-weight: 500; }
+  .B .row .sub { font-size: 11px; }
+  .B .row.playing .name { color: #1ed760; }
+  .B .row .bars { margin-left: auto; display: flex; gap: 2px; align-items: flex-end; height: 12px; }
+  .B .row .bars i { display: block; width: 2px; background: #1ed760; animation: eq .8s infinite alternate; }
+  .B .row .bars i:nth-child(2) { animation-delay: .2s; } .B .row .bars i:nth-child(3) { animation-delay: .4s; }
+  @keyframes eq { from { height: 3px } to { height: 12px } }
+  .B .mini { border-top: 1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.25); padding: 10px 12px 8px; }
+  .B .mini .top { display: flex; align-items: center; gap: 10px; }
+  .B .mini .art { width: 44px; height: 44px; }
+  .B .mini .text { flex: 1; min-width: 0; }
+  .B .mini .title { font-weight: 600; }
+  .B .mini .ctl { display: flex; align-items: center; gap: 6px; }
+  .B .mini .ctl button { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+  .B .mini .ctl button:hover { background: rgba(255,255,255,.12); }
+  .B .mini .ctl .icon { width: 20px; height: 20px; }
+  .B .mini .progress { margin: 8px 0 6px; }
+  .B .mini .bottom { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+  .B .mini .bottom input { max-width: 110px; }
+  .B .mini .bottom .icon { width: 13px; height: 13px; color: #9a9a9e; }
+  .B .mini .bottom .spotify { margin-left: auto; }
+
+  /* ===== C: native menu ===== */
+  .C { width: 250px; padding: 5px; background: rgba(50,50,54,.96); border-radius: 8px; font-size: 13px; }
+  .C .mrow { display: flex; align-items: center; gap: 8px; padding: 3px 10px 3px 8px; border-radius: 5px; min-height: 22px; }
+  .C .mrow.click:hover { background: #2c62d6; color: #fff; }
+  .C .mrow.click:hover .muted { color: rgba(255,255,255,.75); }
+  .C .mrow.click:hover .spotify { color: #fff; }
+  .C .mrow .check { width: 12px; font-size: 11px; }
+  .C .mrow .art { width: 14px; height: 14px; border-radius: 3px; }
+  .C .np { padding: 6px 10px 4px 8px; display: flex; gap: 10px; align-items: center; }
+  .C .np .art { width: 44px; height: 44px; border-radius: 5px; }
+  .C .np .title { font-weight: 600; }
+  .C .np .sub { font-size: 12px; }
+  .C hr { border: 0; border-top: 1px solid rgba(255,255,255,.15); margin: 5px 10px; }
+  .C .head { font-size: 11px; color: #8a8a8e; padding: 2px 10px 2px 8px; }
+  .C .vol input[type=range] { --v: 60%; }
+  .C .mrow .icon { width: 13px; height: 13px; }
+  .C .kbd { margin-left: auto; color: #9a9a9e; font-size: 12px; }
+  .C .mrow.click:hover .kbd { color: rgba(255,255,255,.75); }
+  .C .paste { padding: 2px 8px 4px; }
+  .C .paste input { font-size: 12px; padding: 3px 6px; }
+  .C .sub-indent { padding-left: 28px; }
+
+  /* switcher */
+  .switch { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: #ffe27a; color: #1a1a1a; border-radius: 999px; padding: 6px 10px; display: flex; align-items: center; gap: 12px; font-weight: 600; box-shadow: 0 4px 16px rgba(0,0,0,.5); font-family: ui-monospace, Menlo, monospace; font-size: 12px; z-index: 9; }
+  .switch button { font-size: 16px; padding: 0 6px; }
+  .switch small { font-weight: 400; opacity: .7; }
+  .notes { position: fixed; left: 18px; bottom: 18px; max-width: 330px; font-size: 12px; color: #bbb; background: rgba(0,0,0,.45); padding: 10px 12px; border-radius: 8px; }
+  .notes b { color: #ffe27a; }
+</style>
+</head>
+<body>
+<div class="menubar">
+  <span class="item">Wi‑Fi</span><span class="item">🔋 81%</span><span class="item slopify">▶ slopify</span><span class="item">Tue 9:41 PM</span>
+</div>
+<div class="stage"><div class="dropdown" id="root"></div></div>
+
+<div class="switch">
+  <button id="prev" title="previous (←)">‹</button>
+  <span id="label">A</span>
+  <button id="next" title="next (→)">›</button>
+</div>
+<div class="notes" id="notes"></div>
+
+<svg style="display:none">
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6zM16 6h2v12h-2z"/></symbol>
+  <symbol id="i-vol" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4z"/></symbol>
+  <symbol id="i-spot" viewBox="0 0 24 24"><path d="M12 0a12 12 0 1 0 0 24 12 12 0 0 0 0-24zm5.5 17.3a.75.75 0 0 1-1.03.25c-2.82-1.72-6.37-2.11-10.55-1.16a.75.75 0 1 1-.33-1.46c4.57-1.05 8.5-.6 11.65 1.33.35.22.47.68.26 1.04zm1.47-3.27a.94.94 0 0 1-1.29.31c-3.23-1.98-8.15-2.56-11.97-1.4a.94.94 0 1 1-.54-1.8c4.36-1.32 9.78-.68 13.49 1.6.44.27.58.85.31 1.29zm.13-3.4C15.24 8.33 8.83 8.12 5.13 9.24a1.13 1.13 0 1 1-.65-2.16c4.25-1.29 11.31-1.04 15.76 1.6a1.13 1.13 0 0 1-1.15 1.94z"/></symbol>
+</svg>
+
+<script>
+// ---- mock data ----
+const track = { title: "Cold Little Heart", artist: "Michael Kiwanuka", album: "Love & Hate", pos: "3:52", len: "9:58" };
+const sources = [
+  { id: "liked", name: "Liked Songs", sub: "1,204 songs", art: "liked" },
+  { id: "p1", name: "late night driving", sub: "you · 84 songs", art: "pl1" },
+  { id: "p2", name: "kitchen", sub: "you · 212 songs", art: "pl2" },
+  { id: "p3", name: "Deep Focus", sub: "Spotify · 220 songs", art: "pl3" },
+  { id: "p4", name: "friday bangers", sub: "sam · 61 songs", art: "pl4" },
+  { id: "p5", name: "2019", sub: "you · 340 songs", art: "pl1" },
+];
+const state = { playing: true, source: "p1", pickerOpen: false, volume: 60 };
+const ico = (id, cls = "icon") => `<svg class="${cls}"><use href="#${id}"/></svg>`;
+const playIcon = () => ico(state.playing ? "i-pause" : "i-play");
+const spotifyLink = (label = "Open in Spotify") => `<a class="spotify" href="#" onclick="return false">${ico("i-spot", "")}<span>${label}</span></a>`;
+
+// ---- variants ----
+const variants = {
+  A: {
+    name: "Player first",
+    note: "Big artwork, transport under it, Source as a row that expands into the picker. Attribution sits in the footer beside Quit. Click the Source row.",
+    render() {
+      const cur = sources.find(s => s.id === state.source);
+      return `<div class="A ${state.pickerOpen ? "open" : ""}">
+        <div class="np">
+          <div class="art"></div>
+          <div class="meta">
+            <div style="min-width:0">
+              <div class="title ellip">${track.title}</div>
+              <div class="muted ellip">${track.artist} · ${track.album}</div>
+            </div>
+            ${spotifyLink("")}
+          </div>
+          <div class="progress"><i></i></div>
+          <div class="times muted"><span>${track.pos}</span><span>${track.len}</span></div>
+        </div>
+        <div class="transport">
+          <span class="ghost"></span>
+          <button class="play" data-act="toggle">${playIcon()}</button>
+          <button class="skip" title="Next">${ico("i-next")}</button>
+        </div>
+        <div class="vol">${ico("i-vol")}<input type="range" value="${state.volume}" style="--v:${state.volume}%"></div>
+        <div class="sourcebar">
+          <button class="current" data-act="picker">
+            <div class="art ${cur.art}"></div>
+            <div style="min-width:0">
+              <div class="lbl muted">Playing from</div>
+              <div class="ellip">${cur.name}</div>
+            </div>
+            <span class="chev muted">⌄</span>
+          </button>
+          <div class="picker">
+            ${sources.map(s => `<div class="row click" data-src="${s.id}">
+              <span class="check">${s.id === state.source ? "✓" : ""}</span>
+              <div class="art ${s.art}"></div>
+              <div style="min-width:0"><div class="ellip">${s.name}</div><div class="sub muted ellip">${s.sub}</div></div>
+            </div>`).join("")}
+            <div class="paste"><input type="text" placeholder="Paste a playlist link…"></div>
+          </div>
+        </div>
+        <div class="footer">
+          ${spotifyLink("Spotify")}
+          <span class="muted">jnsdls · <a href="#" onclick="return false" style="color:inherit">Quit</a></span>
+        </div>
+      </div>`;
+    },
+  },
+  B: {
+    name: "Source first",
+    note: "The dropdown is the playlist list, like a sidebar. Filter field at the top also takes a pasted URL. Mini player pinned at the bottom with inline volume.",
+    render() {
+      const own = sources.filter(s => s.sub.startsWith("you"));
+      const followed = sources.filter(s => !s.sub.startsWith("you") && s.id !== "liked");
+      const row = s => `<div class="row click ${s.id === state.source ? "playing" : ""}" data-src="${s.id}">
+        <div class="art ${s.art}"></div>
+        <div style="min-width:0"><div class="name ellip">${s.name}</div><div class="sub muted ellip">${s.sub}</div></div>
+        ${s.id === state.source && state.playing ? '<span class="bars"><i></i><i></i><i></i></span>' : ""}
+      </div>`;
+      return `<div class="B">
+        <div class="search"><input type="text" placeholder="Filter playlists, or paste a link"></div>
+        <div class="list">
+          ${row(sources[0])}
+          <div class="section">Your playlists</div>
+          ${own.map(row).join("")}
+          <div class="section">Followed</div>
+          ${followed.map(row).join("")}
+        </div>
+        <div class="mini">
+          <div class="top">
+            <div class="art"></div>
+            <div class="text">
+              <div class="title ellip">${track.title}</div>
+              <div class="muted ellip">${track.artist}</div>
+            </div>
+            <div class="ctl">
+              <button data-act="toggle">${playIcon()}</button>
+              <button title="Next">${ico("i-next")}</button>
+            </div>
+          </div>
+          <div class="progress"><i></i></div>
+          <div class="bottom">
+            ${ico("i-vol")}<input type="range" value="${state.volume}" style="--v:${state.volume}%">
+            ${spotifyLink("Open in Spotify")}
+          </div>
+        </div>
+      </div>`;
+    },
+  },
+  C: {
+    name: "Native menu",
+    note: "Looks like a stock NSMenu. Now playing is a header, everything else is a menu row with a keyboard hint. Sources are radio rows, no artwork bigger than a favicon.",
+    render() {
+      return `<div class="C">
+        <div class="np">
+          <div class="art"></div>
+          <div style="min-width:0">
+            <div class="title ellip">${track.title}</div>
+            <div class="sub muted ellip">${track.artist}</div>
+            <div class="sub muted">${track.pos} / ${track.len}</div>
+          </div>
+        </div>
+        <div class="mrow click" data-act="toggle"><span class="check"></span>${state.playing ? "Pause" : "Play"}<span class="kbd">⏯</span></div>
+        <div class="mrow click"><span class="check"></span>Next<span class="kbd">⏭</span></div>
+        <div class="mrow vol"><span class="check"></span>${ico("i-vol")}<input type="range" value="${state.volume}" style="--v:${state.volume}%"></div>
+        <hr>
+        <div class="head">Source</div>
+        ${sources.map(s => `<div class="mrow click" data-src="${s.id}">
+          <span class="check">${s.id === state.source ? "✓" : ""}</span>
+          <div class="art ${s.art}"></div>
+          <span class="ellip">${s.name}</span>
+          <span class="kbd muted">${s.sub.split(" · ")[0] === "you" ? "" : s.sub.split(" · ")[0]}</span>
+        </div>`).join("")}
+        <div class="paste"><input type="text" placeholder="Paste playlist link…"></div>
+        <hr>
+        <div class="mrow click"><span class="check"></span>${spotifyLink("Open in Spotify")}</div>
+        <div class="mrow click"><span class="check"></span>Sign out<span class="kbd muted">jnsdls</span></div>
+        <div class="mrow click"><span class="check"></span>Quit slopify<span class="kbd">⌘Q</span></div>
+      </div>`;
+    },
+  },
+};
+
+// ---- switcher ----
+const keys = Object.keys(variants);
+const url = new URL(location.href);
+let current = keys.includes(url.searchParams.get("variant")) ? url.searchParams.get("variant") : "A";
+const root = document.getElementById("root");
+function render() {
+  root.innerHTML = variants[current].render();
+  document.getElementById("label").innerHTML = `${current} <small>${variants[current].name}</small>`;
+  document.getElementById("notes").innerHTML = `<b>${current}.</b> ${variants[current].note}<br><br>state: ${JSON.stringify(state)}`;
+}
+function go(dir) {
+  current = keys[(keys.indexOf(current) + dir + keys.length) % keys.length];
+  url.searchParams.set("variant", current);
+  history.replaceState(null, "", url);
+  render();
+}
+document.getElementById("prev").onclick = () => go(-1);
+document.getElementById("next").onclick = () => go(1);
+document.addEventListener("keydown", e => {
+  if (["INPUT", "TEXTAREA"].includes(e.target.tagName) || e.target.isContentEditable) return;
+  if (e.key === "ArrowLeft") go(-1);
+  if (e.key === "ArrowRight") go(1);
+});
+root.addEventListener("click", e => {
+  const act = e.target.closest("[data-act]")?.dataset.act;
+  const src = e.target.closest("[data-src]")?.dataset.src;
+  if (act === "toggle") state.playing = !state.playing;
+  if (act === "picker") state.pickerOpen = !state.pickerOpen;
+  if (src) { state.source = src; state.playing = true; state.pickerOpen = false; }
+  if (act || src) render();
+});
+root.addEventListener("input", e => {
+  if (e.target.type === "range") { state.volume = +e.target.value; e.target.style.setProperty("--v", state.volume + "%"); }
+});
+render();
+</script>
+</body>
+</html>
