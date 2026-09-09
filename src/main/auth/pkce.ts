@@ -1,6 +1,8 @@
 import crypto from 'node:crypto';
 
-export const CLIENT_ID = 'a768335a56b648d4a6d11d945d029ce4';
+// The id of the Spotify developer app this build signs in through. Set MAIN_VITE_SPOTIFY_CLIENT_ID in
+// .env.local; electron.vite.config.ts refuses to build without it.
+export const CLIENT_ID: string = import.meta.env.MAIN_VITE_SPOTIFY_CLIENT_ID;
 export const REDIRECT_URI = 'http://127.0.0.1:8888/callback';
 export const CALLBACK_PORT = 8888;
 export const SCOPES: readonly string[] = [

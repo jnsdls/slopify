@@ -1,0 +1,13 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    ignore:
+      # Pinned to the castLabs build the licence check ran against (ADR 0001).
+      - dependency-name: electron
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
