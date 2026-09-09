@@ -22,6 +22,14 @@ const CSP = [
 function installNetworkHooks(): void {
   const { webRequest } = session.defaultSession;
 
+  // Electron grants every permission request by default, which on macOS surfaces as a microphone
+  // prompt the moment a page touches media devices. Nothing in slopify needs one; deny and log.
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, callback, details) => {
+    log.warn('permission denied', permission, details.requestingUrl?.slice(0, 120));
+    callback(false);
+  });
+  session.defaultSession.setPermissionCheckHandler(() => false);
+
   webRequest.onHeadersReceived((details, callback) => {
     if (details.resourceType !== 'mainFrame') return callback({});
     callback({ responseHeaders: { ...details.responseHeaders, 'Content-Security-Policy': [CSP] } });
