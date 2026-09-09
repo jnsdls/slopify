@@ -89,7 +89,7 @@ app.whenReady().then(async () => {
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
   });
   win.webContents.on('console-message', (_e, _l, m) => log('console', m));
-  win.loadFile('index.html');
+  win.loadFile(process.env.SPIKE_PAGE || 'index.html', { hash: process.env.SPIKE_HASH });
 });
 app.on('window-all-closed', () => app.quit());
 process.on('unhandledRejection', e => { log('FATAL', String(e)); app.exit(1); });
