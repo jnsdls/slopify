@@ -41,14 +41,15 @@ export function createKeychain(run: SecurityRunner = runSecurity): Keychain {
       const r = await run(['find-generic-password', '-s', KEYCHAIN_SERVICE, '-w']);
       if (r.code === ITEM_NOT_FOUND) return null;
       if (r.code !== 0) throw fail('find-generic-password', r);
-      return r.stdout.replace(/\r?\n$/, '');
+      const value = r.stdout.replace(/\r?\n$/, '');
+      return value === '' ? null : value;
     },
 
+    // `-w` with no value reads from the tty, never from a pipe, so a piped value stores an empty
+    // secret. `security -i` takes whole commands on stdin instead; the token still never hits argv.
     async write(userId, token) {
-      const r = await run(
-        ['add-generic-password', '-a', userId, '-s', KEYCHAIN_SERVICE, '-U', '-T', SECURITY_BIN, '-w'],
-        token,
-      );
+      const command = ['add-generic-password', '-a', quote(userId), '-s', KEYCHAIN_SERVICE, '-U', '-T', SECURITY_BIN, '-w', quote(token)];
+      const r = await run(['-i'], command.join(' ') + '\n');
       if (r.code !== 0) throw fail('add-generic-password', r);
     },
 
@@ -57,4 +58,8 @@ export function createKeychain(run: SecurityRunner = runSecurity): Keychain {
       if (r.code !== 0 && r.code !== ITEM_NOT_FOUND) throw fail('delete-generic-password', r);
     },
   };
+}
+
+function quote(value: string): string {
+  return `'${value.replace(/'/g, "'\\''")}'`;
 }

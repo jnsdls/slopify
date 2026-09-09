@@ -18,6 +18,11 @@ describe('createKeychain', () => {
       expect(run.mock.calls[0]?.[0]).toEqual(['find-generic-password', '-s', KEYCHAIN_SERVICE, '-w']);
     });
 
+    it('treats an empty stored value as no token', async () => {
+      const run = fakeRunner({ stdout: '\n' });
+      await expect(createKeychain(run).read()).resolves.toBeNull();
+    });
+
     it('returns null when the item is missing (exit 44)', async () => {
       const run = fakeRunner({ code: 44, stderr: 'The specified item could not be found in the keychain.' });
       await expect(createKeychain(run).read()).resolves.toBeNull();
@@ -30,19 +35,25 @@ describe('createKeychain', () => {
   });
 
   describe('write', () => {
-    it('runs add-generic-password with the user id and pipes the token on stdin', async () => {
+    it('feeds add-generic-password to security -i on stdin with the token quoted', async () => {
       const run = fakeRunner({});
       await createKeychain(run).write('user-1', 'tok-123');
       expect(run).toHaveBeenCalledWith(
-        ['add-generic-password', '-a', 'user-1', '-s', KEYCHAIN_SERVICE, '-U', '-T', '/usr/bin/security', '-w'],
-        'tok-123',
+        ['-i'],
+        `add-generic-password -a 'user-1' -s ${KEYCHAIN_SERVICE} -U -T /usr/bin/security -w 'tok-123'\n`,
       );
     });
 
     it('never puts the token in argv', async () => {
       const run = fakeRunner({});
       await createKeychain(run).write('user-1', 'tok-123');
-      expect(run.mock.calls[0]?.[0]).not.toContain('tok-123');
+      expect(run.mock.calls[0]?.[0].join(' ')).not.toContain('tok-123');
+    });
+
+    it('escapes single quotes in the token', async () => {
+      const run = fakeRunner({});
+      await createKeychain(run).write('user-1', "to'k");
+      expect(run.mock.calls[0]?.[1]).toContain("-w 'to'\\''k'");
     });
 
     it('rejects on failure', async () => {
