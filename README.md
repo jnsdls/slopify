@@ -32,7 +32,7 @@ pnpm package    # builds dist/mac-arm64/slopify.app
 cp -R dist/mac-arm64/slopify.app /Applications/
 ```
 
-`pnpm package` refreshes the EVS token, builds with electron-vite, packages with electron-builder, VMP-signs, flips Electron fuses, then ad-hoc codesigns. The EVS token expires monthly, and a stale token is the usual reason a build fails. There is no DMG, no notarisation and no updater. Rebuild and copy again.
+`pnpm package` refreshes the EVS token, builds with electron-vite, packages with electron-builder, VMP-signs, then ad-hoc codesigns. Electron's fuses stay stock, because the EVS server refuses to sign a binary with flipped fuses. One consequence: if `ELECTRON_RUN_AS_NODE` is set in the environment that launches the app, the binary starts as plain Node and exits. Finder and the login item never set it; a shell that does needs `env -u ELECTRON_RUN_AS_NODE open /Applications/slopify.app`. The EVS token expires monthly, and a stale token is the usual reason a build fails. There is no DMG, no notarisation and no updater. Rebuild and copy again.
 
 `pnpm check` runs the type check, ESLint and the unit tests.
 

@@ -11,11 +11,10 @@ python3 -m castlabs_evs.account -n refresh \
 # 2. Compile main, preload and renderer into out/.
 pnpm exec electron-vite build
 
-# 3. Package. afterPack.cjs VMP-signs the bundle; electron-builder 26.15.3 flips `electronFuses`
-#    after the afterPack hook, so the order is VMP, fuses, then the ad-hoc codesign in step 4.
-#    Spec, "Packaging and signing", paragraph "VMP before codesign, always": if verify-pkg below
-#    fails, swap to fuses-before-VMP by dropping `electronFuses` from package.json and calling
-#    `context.packager.addElectronFuses(context, {...})` at the top of afterPack.cjs.
+# 3. Package. afterPack.cjs VMP-signs the bundle. The fuse flip the spec asked for ("Packaging and
+#    signing", paragraph "VMP before codesign, always") is out: flipped after VMP it breaks the VMP
+#    signature, flipped before VMP the EVS server denies the unknown binary hash. Both tried 2026-09-09.
+#    So the packaged app still honours ELECTRON_RUN_AS_NODE; launch it from an environment without it.
 env -u ELECTRON_RUN_AS_NODE pnpm exec electron-builder --mac --dir
 
 # 4. Ad-hoc codesign after VMP, then verify both signatures.
