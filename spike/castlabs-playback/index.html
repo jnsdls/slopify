@@ -1,40 +1,50 @@
 <!doctype html><meta charset="utf-8"><title>slopify spike</title>
 <body style="font:14px monospace;padding:12px"><pre id="out"></pre>
 <script>
+// Smoke test: does navigator.mediaSession reach macOS media keys and Now Playing on castLabs v44.1.0+wvcus?
 const out = document.getElementById('out');
 const log = (...a) => { out.textContent += a.join(' ') + '\n'; window.spike.log(...a); };
-const TRACK = 'spotify:track:4uLU6hMCjMI75M1A2tKUQC';
+const TRACKS = ['spotify:track:4uLU6hMCjMI75M1A2tKUQC', 'spotify:track:7ouMYWpwJ422jRcDASZB7P', 'spotify:track:3n3Ppam7vgaVa1iaRUc9Lp'];
+const RUN_MS = 150000;
 window.onSpotifyWebPlaybackSDKReady = async () => {
   const token = await window.spike.token();
   const player = new Spotify.Player({ name: 'slopify spike', getOAuthToken: cb => cb(token), volume: 0.4 });
   for (const ev of ['initialization_error', 'authentication_error', 'account_error', 'playback_error'])
     player.addListener(ev, e => log(ev, JSON.stringify(e)));
-  player.addListener('not_ready', ({ device_id }) => log('not_ready', device_id));
-  let started = 0, lastPos = -1, ticks = 0;
+  const ms = navigator.mediaSession;
+  log('mediaSession present:', !!ms, 'MediaMetadata:', typeof MediaMetadata);
+  // Action handlers: every fire is logged with a MEDIAKEY prefix so the shell can grep it.
+  const actions = { play: () => player.resume(), pause: () => player.pause(), nexttrack: () => player.nextTrack(), previoustrack: () => player.previousTrack(), stop: () => player.pause() };
+  for (const [name, fn] of Object.entries(actions)) {
+    try { ms.setActionHandler(name, () => { log('MEDIAKEY action', name); fn(); }); log('handler set', name); }
+    catch (e) { log('handler FAILED', name, String(e)); }
+  }
+  let lastTrackId = null;
   player.addListener('player_state_changed', s => {
     if (!s) return;
-    log('state', s.paused ? 'paused' : 'playing', 'pos', s.position, 'dur', s.duration, s.track_window?.current_track?.name);
-    if (!s.paused && !started) started = Date.now();
+    const t = s.track_window?.current_track;
+    log('state', s.paused ? 'paused' : 'playing', 'pos', s.position, t?.name);
+    ms.playbackState = s.paused ? 'paused' : 'playing';
+    if (t && t.id !== lastTrackId) {
+      lastTrackId = t.id;
+      ms.metadata = new MediaMetadata({
+        title: t.name, artist: t.artists.map(a => a.name).join(', '), album: t.album.name,
+        artwork: t.album.images.map(i => ({ src: i.url, sizes: `${i.width}x${i.height}`, type: 'image/jpeg' })),
+      });
+      log('metadata set:', t.name, '/', t.artists[0]?.name);
+    }
+    try { ms.setPositionState({ duration: s.duration / 1000, playbackRate: 1, position: s.position / 1000 }); } catch (e) { log('positionState FAILED', String(e)); }
   });
   player.addListener('ready', async ({ device_id }) => {
     log('ready device', device_id);
     const r = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${device_id}`, {
       method: 'PUT', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uris: [TRACK] }),
+      body: JSON.stringify({ uris: TRACKS }),
     });
     log('play PUT', r.status, r.status >= 400 ? await r.text() : '');
-    // Poll position: if it advances for 20s we call it a pass.
-    const iv = setInterval(async () => {
-      const s = await player.getCurrentState();
-      if (!s) { ticks++; if (ticks > 60) { log('RESULT: no state after 60s'); clearInterval(iv); window.spike.done(); } return; }
-      const advancing = s.position > lastPos && !s.paused;
-      lastPos = s.position;
-      if (advancing && Date.now() - started > 20000) { log('RESULT: PLAYED 20s, pos', s.position); clearInterval(iv); window.spike.done(); }
-      if (++ticks > 90) { log('RESULT: TIMEOUT, pos', s.position, 'paused', s.paused); clearInterval(iv); window.spike.done(); }
-    }, 1000);
+    setTimeout(() => { log('RESULT: run window over'); window.spike.done(); }, RUN_MS);
   });
-  const ok = await player.connect();
-  log('connect', ok);
+  log('connect', await player.connect());
 };
 </script>
 <script src="https://sdk.scdn.co/spotify-player.js"></script>
