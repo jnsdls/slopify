@@ -1,10 +1,11 @@
 import { app, ipcMain, shell, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron';
 import type { TokenStore } from './auth/index';
+import { bridgeError } from '../shared/bridge-error';
 import type { SourceCatalog, SpotifyApi } from './spotify/index';
 import { getPlayingElsewhere, resolvePastedLink, startSource, transferHere } from './spotify/index';
 import type { StateFile } from './state-file';
 import { hideWindow, setContentHeight } from './window';
-import { ipc, type BridgeError, type ResumePoint, type Source } from '../shared/bridge';
+import { ipc, type ResumePoint, type Source } from '../shared/bridge';
 import { isBridgeError, serializeBridgeError } from '../shared/bridge-error';
 
 export interface IpcDeps {
@@ -23,7 +24,7 @@ export function registerIpc({ tokenStore, api, catalog, stateFile, log }: IpcDep
   let deviceId: string | null = null;
 
   const requireDevice = (): string => {
-    if (deviceId === null) throw { code: 'no-device' } satisfies BridgeError;
+    if (deviceId === null) throw bridgeError('no-device');
     return deviceId;
   };
 

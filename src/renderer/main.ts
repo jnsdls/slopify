@@ -1,4 +1,4 @@
-import type { AuthState, SlopifyBridge } from '../shared/bridge';
+import type { AuthState } from '../shared/bridge';
 import { Dropdown } from './dropdown';
 import { installMediaHandlers } from './media-session';
 import { Picker } from './picker';
@@ -46,6 +46,7 @@ function maybeStart(): void {
 function onAuth(next: AuthState): void {
   auth = next;
   if (auth.kind !== 'signed-in') picker.close();
+  else if (started) player.onSignedIn();
   render();
   maybeStart();
 }
@@ -90,16 +91,14 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// The main-shell agent may add setContentHeight to the bridge; until then the window keeps its own height.
-const setContentHeight = (bridge as SlopifyBridge & { setContentHeight?: (px: number) => void }).setContentHeight;
-if (setContentHeight) {
+{
   const app = document.getElementById('app') as HTMLElement;
   let lastHeight = 0;
   new ResizeObserver(() => {
     const height = Math.min(MAX_HEIGHT, Math.ceil(app.getBoundingClientRect().height));
     if (height !== lastHeight && height > 0) {
       lastHeight = height;
-      setContentHeight.call(bridge, height);
+      bridge.setContentHeight(height);
     }
   }).observe(app);
 }

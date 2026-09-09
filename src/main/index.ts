@@ -13,7 +13,7 @@ const CSP = [
   "default-src 'self'",
   "script-src 'self' https://sdk.scdn.co",
   "connect-src 'self' https://*.spotify.com https://*.scdn.co wss://*.spotify.com",
-  "img-src 'self' https://i.scdn.co data:",
+  "img-src 'self' data: https://i.scdn.co https://*.scdn.co https://*.spotifycdn.com",
   "style-src 'self' 'unsafe-inline'",
   "media-src 'self' https://*.scdn.co https://*.spotify.com blob:",
   'frame-src https://sdk.scdn.co https://*.spotify.com',

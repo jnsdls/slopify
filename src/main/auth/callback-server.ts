@@ -96,11 +96,3 @@ function parseCallback(
   if (!code) return { error: new CallbackError('denied', 'Callback carried no code') };
   return { code };
 }
-
-export async function waitForCallback(
-  expectedState: string,
-  opts?: CallbackOptions,
-): Promise<string> {
-  const server = await startCallbackServer(expectedState, opts);
-  return server.code;
-}

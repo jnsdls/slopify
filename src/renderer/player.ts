@@ -1,6 +1,7 @@
 // The Player: one Spotify.Player, every SDK event from the spec's "Events" list, and the launch sequence.
 
-import type { BridgeError, ResumePoint, SlopifyBridge, Source } from '../shared/bridge';
+import { isBridgeError } from '../shared/bridge-error';
+import type { ResumePoint, SlopifyBridge, Source } from '../shared/bridge';
 import { PlaybackErrorGate, debounce, largestImage, throttle } from './format';
 import { clearMediaSession, updateMediaSession } from './media-session';
 import type { PlayerState, TrackInfo } from './model';
@@ -28,13 +29,10 @@ function trackInfo(track: Spotify.Track): TrackInfo {
   };
 }
 
-function isBridgeError(error: unknown): error is BridgeError {
-  return typeof error === 'object' && error !== null && typeof (error as BridgeError).code === 'string';
-}
-
 export class Player {
   readonly state: PlayerState = {
-    connected: false,
+    // "Reconnecting" is reserved for not_ready; before the first ready the Dropdown shows the empty state.
+    connected: true,
     track: null,
     paused: true,
     positionMs: 0,
@@ -162,6 +160,14 @@ export class Player {
   }
 
   // SDK events
+
+  /** A fresh sign-in after `expired` gets the launch sequence again once the SDK reconnects. */
+  onSignedIn(): void {
+    this.fatal = null;
+    this.authRetried = false;
+    if (!this.state.connected) this.hadReady = false;
+    this.emit();
+  }
 
   private onReady(deviceId: string): void {
     this.bridge.reportDevice(deviceId);

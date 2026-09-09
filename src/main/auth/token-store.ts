@@ -124,6 +124,7 @@ export class TokenStore {
 
   private async signInOnce() {
     this.publish({ kind: 'signing-in' });
+    this.profile = null;
     try {
       await this.runPkceFlow();
     } catch (err) {
@@ -202,6 +203,7 @@ export class TokenStore {
     this.log.warn('refresh token rejected with invalid_grant, signing out');
     this.refreshToken = null;
     this.accessToken = null;
+    this.profile = null;
     this.clearTimer();
     await this.deps.keychain.delete();
     this.publish({ kind: 'signed-out', reason: 'expired' });

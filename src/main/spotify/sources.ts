@@ -1,4 +1,5 @@
-import type { BridgeError, Source } from '../../shared/bridge';
+import type { Source } from '../../shared/bridge';
+import { bridgeError } from '../../shared/bridge-error';
 import { ApiError, type SpotifyApi } from './api';
 
 const ID = '[0-9A-Za-z]{22}';
@@ -37,12 +38,13 @@ export class SourceCatalog {
 
   constructor(private readonly api: SpotifyApi) {}
 
-  /** Cached list when there is one, with a refresh started behind it; otherwise fetches. */
-  async list(): Promise<Source[]> {
-    if (this.cache) {
-      void this.refresh().catch(() => {});
-      return this.cache;
-    }
+  /** The last fetched list, for callers that must not wait (mapping a context uri to its Source). */
+  get current(): Source[] | null {
+    return this.cache;
+  }
+
+  /** Always fetches; the Picker renders its own cached copy first and swaps in this result. */
+  list(): Promise<Source[]> {
     return this.refresh();
   }
 
@@ -71,16 +73,16 @@ export class SourceCatalog {
 
 export async function resolvePastedLink(api: SpotifyApi, text: string): Promise<Source> {
   const id = parsePastedLink(text);
-  if (!id) throw { code: 'bad-link' } satisfies BridgeError;
+  if (!id) throw bridgeError('bad-link');
   let res;
   try {
     res = await api.request<PlaylistJson>('GET', `/playlists/${id}`, { query: { fields: 'name,uri,images,owner.id' } });
   } catch (e) {
-    if (e instanceof ApiError && e.status === 404) throw { code: 'not-found' } satisfies BridgeError;
-    if (e instanceof ApiError && e.status === 403) throw { code: 'forbidden' } satisfies BridgeError;
+    if (e instanceof ApiError && e.status === 404) throw bridgeError('not-found');
+    if (e instanceof ApiError && e.status === 403) throw bridgeError('forbidden');
     throw e;
   }
   const p = res.json;
-  if (!p) throw { code: 'not-found' } satisfies BridgeError;
+  if (!p) throw bridgeError('not-found');
   return { kind: 'playlist', id, uri: p.uri, name: p.name, imageUrl: firstImage(p), pasted: true };
 }

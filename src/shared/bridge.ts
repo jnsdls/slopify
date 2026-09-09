@@ -74,7 +74,7 @@ export interface SlopifyBridge {
   setContentHeight(px: number): void;
 }
 
-/** IPC channel names, one per bridge method, shared by preload and main. */
+/** IPC channel names shared by preload and main. Event channels (authState, windowShown) feed the on* subscriptions. */
 export const ipc = {
   getAuthState: 'auth:get',
   authState: 'auth:state',

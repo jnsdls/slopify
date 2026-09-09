@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CallbackError, startCallbackServer, waitForCallback } from './callback-server.js';
+import { CallbackError, startCallbackServer } from './callback-server.js';
 
 type Started = Awaited<ReturnType<typeof startCallbackServer>>;
 const open: Started[] = [];
@@ -69,10 +69,10 @@ describe('startCallbackServer', () => {
   });
 });
 
-describe('waitForCallback', () => {
+describe('port already bound', () => {
   it('surfaces port-in-use as a CallbackError', async () => {
     const first = await start('a');
-    await expect(waitForCallback('b', { port: first.port })).rejects.toMatchObject({
+    await expect(startCallbackServer('b', { port: first.port })).rejects.toMatchObject({
       code: 'port-in-use',
     });
   });

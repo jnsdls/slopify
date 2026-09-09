@@ -318,6 +318,24 @@ describe('signIn', () => {
     expect(states.at(-1)).toEqual({ kind: 'signed-out', reason: 'error', detail: 'Port 8888 is in use' });
   });
 
+  it('fetches the profile again after expired, so a different Listener can sign in', async () => {
+    const { store, keychain, states } = build({
+      token: [
+        tokens(),
+        { status: 400, body: { error: 'invalid_grant', error_description: 'Refresh token revoked' } },
+        tokens({ refresh_token: 'rt-2' }),
+      ],
+      me: [me, { status: 200, body: { id: 'user-2', display_name: 'Sam' } }],
+      deps: { startCallbackServer: async () => callbackServer('code-1') },
+    });
+    await store.start();
+    await vi.advanceTimersByTimeAsync(55 * MIN);
+    expect(states.at(-1)).toEqual({ kind: 'signed-out', reason: 'expired' });
+    await store.signIn();
+    expect(store.getState()).toEqual({ kind: 'signed-in', displayName: 'Sam', userId: 'user-2' });
+    expect(keychain.write).toHaveBeenLastCalledWith('user-2', 'rt-2');
+  });
+
   it('publishes signed-out/error with the message when the exchange fails', async () => {
     const { store, states } = build({
       stored: null,

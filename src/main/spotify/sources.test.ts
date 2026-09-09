@@ -81,18 +81,17 @@ describe('SourceCatalog', () => {
     expect(calls).toHaveLength(2);
   });
 
-  it('returns the cache on a second list and refreshes in the background', async () => {
+  it('fetches on every list and keeps the last result as current', async () => {
     let n = 0;
     const { api, calls } = fakeApi(() => ({ status: 200, json: { items: [playlist(++n)], next: null } }));
     const catalog = new SourceCatalog(api);
+    expect(catalog.current).toBeNull();
     const first = await catalog.list();
     expect(first[1]).toMatchObject({ id: 'id1' });
-
     const second = await catalog.list();
-    expect(second).toBe(first);
-    await vi.waitFor(() => expect(calls).toHaveLength(2));
-    const third = await catalog.list();
-    expect(third[1]).toMatchObject({ id: 'id2' });
+    expect(second[1]).toMatchObject({ id: 'id2' });
+    expect(calls).toHaveLength(2);
+    expect(catalog.current).toBe(second);
   });
 
   it('refresh always fetches and replaces the cache', async () => {

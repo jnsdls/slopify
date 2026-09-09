@@ -13,6 +13,10 @@ export function isBridgeError(err: unknown): err is BridgeError {
   );
 }
 
+export function bridgeError(code: BridgeErrorCode, status?: number): BridgeError {
+  return status === undefined ? { code } : { code, status };
+}
+
 export function serializeBridgeError(err: BridgeError): Error {
   const plain: BridgeError = { code: err.code };
   if (err.status !== undefined) plain.status = err.status;

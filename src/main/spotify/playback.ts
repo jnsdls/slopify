@@ -1,4 +1,4 @@
-import type { BridgeError, Source } from '../../shared/bridge';
+import type { BridgeError, PlayingElsewhere, Source } from '../../shared/bridge';
 import { ApiError, type SpotifyApi } from './api';
 
 export interface Resume {
@@ -55,18 +55,6 @@ export async function transferHere(api: SpotifyApi, deviceId: string): Promise<v
   await api.request('PUT', '/me/player', { body: { device_ids: [deviceId], play: true } });
 }
 
-export interface ElsewhereTrack {
-  uri: string;
-  name: string;
-  artists: { name: string; uri: string }[];
-  album: string;
-  imageUrl: string | null;
-}
-
-export interface PlayingElsewhere {
-  deviceName: string;
-  track?: ElsewhereTrack;
-}
 
 interface PlayerState {
   device: { id: string | null; name: string };
