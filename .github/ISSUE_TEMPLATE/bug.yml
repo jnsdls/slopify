@@ -1,0 +1,38 @@
+name: Bug report
+description: Something slopify does that it should not, or does not do that it should.
+labels: [bug, needs-triage]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what slopify did, and what you expected instead.
+    validations:
+      required: true
+  - type: input
+    id: build
+    attributes:
+      label: Build
+      description: Commit you built from, and whether this was `pnpm dev` or the packaged app.
+      placeholder: 1bd8edf, packaged
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: "15.6"
+    validations:
+      required: true
+  - type: checkboxes
+    id: spotify-desktop
+    attributes:
+      label: Spotify desktop
+      options:
+        - label: Spotify desktop was closed while this happened
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: Relevant lines from `~/Library/Application Support/slopify/logs/slopify.log`. Remove anything that looks like a token.
+      render: text

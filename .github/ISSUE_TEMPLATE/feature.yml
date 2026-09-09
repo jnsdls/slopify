@@ -1,0 +1,19 @@
+name: Feature request
+description: Something you want slopify to do.
+labels: [enhancement, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: Check the "Out of scope" list in docs/spec/v1.md first. Radio, seek, shuffle, sign-out, Windows and Linux are deliberately out.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you are trying to do
+      description: The situation, not the solution. What are you doing when you wish slopify did this?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: How you imagine it working in the Dropdown, if you have an idea.
