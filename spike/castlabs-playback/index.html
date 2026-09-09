@@ -1,0 +1,40 @@
+<!doctype html><meta charset="utf-8"><title>slopify spike</title>
+<body style="font:14px monospace;padding:12px"><pre id="out"></pre>
+<script>
+const out = document.getElementById('out');
+const log = (...a) => { out.textContent += a.join(' ') + '\n'; window.spike.log(...a); };
+const TRACK = 'spotify:track:4uLU6hMCjMI75M1A2tKUQC';
+window.onSpotifyWebPlaybackSDKReady = async () => {
+  const token = await window.spike.token();
+  const player = new Spotify.Player({ name: 'slopify spike', getOAuthToken: cb => cb(token), volume: 0.4 });
+  for (const ev of ['initialization_error', 'authentication_error', 'account_error', 'playback_error'])
+    player.addListener(ev, e => log(ev, JSON.stringify(e)));
+  player.addListener('not_ready', ({ device_id }) => log('not_ready', device_id));
+  let started = 0, lastPos = -1, ticks = 0;
+  player.addListener('player_state_changed', s => {
+    if (!s) return;
+    log('state', s.paused ? 'paused' : 'playing', 'pos', s.position, 'dur', s.duration, s.track_window?.current_track?.name);
+    if (!s.paused && !started) started = Date.now();
+  });
+  player.addListener('ready', async ({ device_id }) => {
+    log('ready device', device_id);
+    const r = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${device_id}`, {
+      method: 'PUT', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uris: [TRACK] }),
+    });
+    log('play PUT', r.status, r.status >= 400 ? await r.text() : '');
+    // Poll position: if it advances for 20s we call it a pass.
+    const iv = setInterval(async () => {
+      const s = await player.getCurrentState();
+      if (!s) { ticks++; if (ticks > 60) { log('RESULT: no state after 60s'); clearInterval(iv); window.spike.done(); } return; }
+      const advancing = s.position > lastPos && !s.paused;
+      lastPos = s.position;
+      if (advancing && Date.now() - started > 20000) { log('RESULT: PLAYED 20s, pos', s.position); clearInterval(iv); window.spike.done(); }
+      if (++ticks > 90) { log('RESULT: TIMEOUT, pos', s.position, 'paused', s.paused); clearInterval(iv); window.spike.done(); }
+    }, 1000);
+  });
+  const ok = await player.connect();
+  log('connect', ok);
+};
+</script>
+<script src="https://sdk.scdn.co/spotify-player.js"></script>

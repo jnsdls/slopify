@@ -1,0 +1,17 @@
+{
+  "name": "slopify-spike-castlabs-playback",
+  "private": true,
+  "version": "0.0.0",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron"
+    ]
+  },
+  "devDependencies": {
+    "electron": "github:castlabs/electron-releases#v44.1.0+wvcus"
+  }
+}
