@@ -1,0 +1,10 @@
+[package]
+name = "wkwebview-playback"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+serde_json = "1.0.151"
+tao = "0.37.1"
+ureq = "3.4.2"
+wry = { version = "0.57.0", features = ["devtools"] }
