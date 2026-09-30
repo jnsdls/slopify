@@ -9,8 +9,8 @@ use objc2_app_kit::{
 };
 use objc2_foundation::{NSData, NSRect, NSSize};
 
-const ICON_1X: &[u8] = include_bytes!("../../../resources/trayTemplate.png");
-const ICON_2X: &[u8] = include_bytes!("../../../resources/trayTemplate@2x.png");
+const ICON_1X: &[u8] = include_bytes!("../../resources/trayTemplate.png");
+const ICON_2X: &[u8] = include_bytes!("../../resources/trayTemplate@2x.png");
 const ICON_POINTS: f64 = 22.0;
 
 /// The menu bar icon. Left and right click both call `on_click`.

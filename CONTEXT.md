@@ -25,7 +25,7 @@ A Playlist reached by pasting its link. It is the Source only until another Sour
 _Avoid_: custom playlist, external playlist
 
 **Player**:
-The Web Playback SDK instance in the app's renderer. It is the Spotify Connect device audio comes out of.
+The Web Playback SDK instance in the app's hidden web view. It is the Spotify Connect device audio comes out of.
 _Avoid_: device, SDK, engine
 
 **Dropdown**:

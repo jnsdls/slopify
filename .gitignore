@@ -1,9 +1,6 @@
-node_modules
-out
+target
 dist
 *.log
 .DS_Store
-tsconfig.*.tsbuildinfo
 .env.local
 .env.*.local
-native/target

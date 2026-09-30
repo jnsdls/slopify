@@ -8,6 +8,9 @@ mod player;
 mod player_host;
 mod status_item;
 
+use std::fs::{self, OpenOptions};
+use std::io::IsTerminal;
+use std::path::Path;
 use std::sync::Arc;
 
 use futures::StreamExt;
@@ -20,11 +23,12 @@ use slopify_state::StateFile;
 use crate::app_model::AppModel;
 use crate::status_item::StatusItem;
 
-// Public: one per person building the app, read at build time like the Electron app did.
+// Public: one per person building the app, read at build time.
 const CLIENT_ID: Option<&str> = option_env!("SLOPIFY_SPOTIFY_CLIENT_ID");
+const LOG_ROTATE_BYTES: u64 = 1024 * 1024;
 
 fn main() {
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+    init_logging();
     log::info!("slopify starting");
     let Some(client_id) = CLIENT_ID.filter(|id| !id.is_empty()) else {
         log::error!(
@@ -74,4 +78,29 @@ fn main() {
             log::error!("player host failed to start: {err}");
         }
     });
+}
+
+/// A terminal gets the log on stderr. Launched from Finder or the login item, stderr goes nowhere,
+/// so the log goes to `logs/slopify.log` next to `state.json`, rotated once at 1 MB.
+fn init_logging() {
+    let mut builder =
+        env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"));
+    if !std::io::stderr().is_terminal()
+        && let Some(file) = slopify_state::default_path()
+            .as_deref()
+            .and_then(Path::parent)
+            .and_then(|dir| open_log(&dir.join("logs")))
+    {
+        builder.target(env_logger::Target::Pipe(Box::new(file)));
+    }
+    builder.init();
+}
+
+fn open_log(dir: &Path) -> Option<fs::File> {
+    fs::create_dir_all(dir).ok()?;
+    let path = dir.join("slopify.log");
+    if fs::metadata(&path).is_ok_and(|m| m.len() > LOG_ROTATE_BYTES) {
+        let _ = fs::rename(&path, dir.join("slopify.old.log"));
+    }
+    OpenOptions::new().create(true).append(true).open(path).ok()
 }

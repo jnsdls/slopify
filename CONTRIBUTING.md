@@ -12,7 +12,7 @@ Read the "Out of scope" list in [docs/spec/v1.md](docs/spec/v1.md) before openin
 
 1. Fork, branch from `main`, and follow the [quick start](README.md#quick-start) to get the app running.
 2. Make the change. Keep the vocabulary from [CONTEXT.md](CONTEXT.md) in names and comments.
-3. Run `pnpm check`. CI runs the same command and a PR cannot merge until it passes.
+3. Run `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test --workspace`. CI runs the same three plus `./package.sh`, and a PR cannot merge until they pass.
 4. If the change touches playback, sign-in, or packaging, run the parts of the manual checklist in [docs/spec/v1.md](docs/spec/v1.md) that apply, on the packaged `.app`, and say in the PR which ones you ran.
 5. Open the PR against `main`. Fill in the template.
 
@@ -20,7 +20,7 @@ Small, single-purpose PRs merge fastest. A behaviour change that the spec does n
 
 ## Things you cannot change casually
 
-- The castLabs Electron pin. Spotify's licence check was run against that exact build; bumping it means running the check again ([ADR 0001](docs/adr/0001-in-app-playback-via-castlabs-electron.md)).
+- The GPUI pin. GPUI comes from a Zed release tag, and Zed only merges what Zed needs, so a bump can break the Dropdown. Bump it in its own PR and run the manual checklist ([ADR 0002](docs/adr/0002-player-in-wkwebview-ui-in-gpui.md)).
 - The redirect port. Spotify's dashboard refuses a portless loopback URI, so `8888` is fixed.
 - The scopes list. It is the minimum the spec needs; adding one is a feature discussion.
 
