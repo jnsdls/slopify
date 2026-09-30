@@ -4193,6 +4193,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "objc2-media-player"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "85f2a98483f6e76313cb85a5a185eaa3cda86a177b13a8852d56cbd0085bf635"
+dependencies = [
+ "bitflags 2.13.2",
+ "block2 0.6.2",
+ "objc2 0.6.4",
+ "objc2-app-kit 0.3.2",
+ "objc2-core-foundation",
+ "objc2-foundation 0.3.2",
+]
+
+[[package]]
 name = "objc2-metal"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5714,6 +5728,7 @@ checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 name = "slopify"
 version = "0.1.0"
 dependencies = [
+ "block2 0.6.2",
  "env_logger",
  "futures",
  "gpui",
@@ -5721,7 +5736,9 @@ dependencies = [
  "log",
  "objc2 0.6.4",
  "objc2-app-kit 0.3.2",
+ "objc2-core-foundation",
  "objc2-foundation 0.3.2",
+ "objc2-media-player",
  "objc2-service-management",
  "raw-window-handle",
  "serde",
@@ -5729,6 +5746,7 @@ dependencies = [
  "slopify-auth",
  "slopify-spotify",
  "slopify-state",
+ "ureq",
  "wry",
 ]
 

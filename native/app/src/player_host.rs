@@ -10,14 +10,15 @@ use futures::StreamExt;
 use futures::channel::mpsc;
 use gpui::{App, Global};
 use objc2::rc::Retained;
-use objc2::{MainThreadMarker, MainThreadOnly};
+use objc2::runtime::{AnyObject, Bool};
+use objc2::{MainThreadMarker, MainThreadOnly, msg_send, sel};
 use objc2_app_kit::{NSBackingStoreType, NSWindow, NSWindowStyleMask};
 use objc2_foundation::{NSPoint, NSRect, NSSize};
 use raw_window_handle::{
     AppKitWindowHandle, HandleError, HasWindowHandle, RawWindowHandle, WindowHandle,
 };
 use wry::http::{Response, StatusCode};
-use wry::{WebView, WebViewBuilder};
+use wry::{WebView, WebViewBuilder, WebViewExtMacOS};
 
 const SCHEME: &str = "slopify";
 const URL: &str = "slopify://player/";
@@ -51,6 +52,7 @@ pub fn init(cx: &mut App, on_message: impl Fn(String, &mut App) + 'static) -> wr
             let _ = tx.unbounded_send(request.into_body());
         })
         .build(&window)?;
+    keep_webkit_out_of_now_playing(&webview);
 
     cx.spawn(async move |cx| {
         while let Some(message) = messages.next().await {
@@ -75,6 +77,32 @@ pub fn eval(js: &str, cx: &App) {
     if let Err(err) = host.webview.evaluate_script(js) {
         log::error!("player eval failed: {err}");
     }
+}
+
+/// WebKit registers its own Now Playing entry for the SDK's media element, titled with the
+/// iframe's document title and nothing else, and the page can't fix it: the element sits in the
+/// SDK's cross-origin iframe, out of reach of the top frame's `navigator.mediaSession`. The app
+/// owns Now Playing instead (`now_playing`), so WebKit has to stay out of it.
+///
+/// WebKit has no public switch for that. The private `RequiresPageVisibilityForVideoToBeNowPlaying`
+/// preference makes a `<video>` in a hidden page ineligible, and the SDK plays through a `<video>`
+/// in a window that is never shown. It is SPI, so check the selector and carry on without it;
+/// the cost is a second Now Playing entry. A public WebKit setting for this would retire it.
+fn keep_webkit_out_of_now_playing(webview: &WebView) {
+    let setter = sel!(_setRequiresPageVisibilityForVideoToBeNowPlayingForTesting:);
+    let preferences: Retained<AnyObject> = unsafe {
+        let configuration: Retained<AnyObject> = msg_send![&*webview.webview(), configuration];
+        msg_send![&*configuration, preferences]
+    };
+    let supported: bool = unsafe { msg_send![&*preferences, respondsToSelector: setter] };
+    if !supported {
+        log::warn!("WebKit lacks the Now Playing visibility preference; expect a second entry");
+        return;
+    }
+    // The configuration shares its preferences object with the page, so this applies live.
+    let _: () = unsafe {
+        msg_send![&*preferences, _setRequiresPageVisibilityForVideoToBeNowPlayingForTesting: Bool::YES]
+    };
 }
 
 fn html(body: &'static str) -> Response<Cow<'static, [u8]>> {

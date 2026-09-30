@@ -195,12 +195,10 @@ impl AppModel {
         self.input(|p, _| p.toggle_play(), cx);
     }
 
-    #[allow(dead_code, reason = "Now Playing (#29) wires the media keys")]
     pub fn play(&mut self, cx: &mut Context<Self>) {
         self.input(|p, _| p.play(), cx);
     }
 
-    #[allow(dead_code, reason = "Now Playing (#29) wires the media keys")]
     pub fn pause(&mut self, cx: &mut Context<Self>) {
         self.input(|p, _| p.pause(), cx);
     }
@@ -209,7 +207,6 @@ impl AppModel {
         self.input(|p, _| p.next(), cx);
     }
 
-    #[allow(dead_code, reason = "Now Playing (#29) wires the media keys")]
     pub fn previous(&mut self, cx: &mut Context<Self>) {
         self.input(|p, _| p.previous(), cx);
     }
@@ -562,7 +559,7 @@ fn auth_label(state: &AuthState) -> String {
 
 /// Runs a blocking call on its own thread. The auth and Web API clients block for up to 30 s
 /// (sign-in for minutes), which would starve GPUI's small background pool.
-async fn blocking<R: Send + 'static>(f: impl FnOnce() -> R + Send + 'static) -> R {
+pub(crate) async fn blocking<R: Send + 'static>(f: impl FnOnce() -> R + Send + 'static) -> R {
     let (tx, rx) = oneshot::channel();
     std::thread::spawn(move || {
         let _ = tx.send(f());

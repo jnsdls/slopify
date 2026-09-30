@@ -1,6 +1,7 @@
 mod app_model;
 mod dropdown;
 mod login_item;
+mod now_playing;
 mod player;
 mod player_host;
 mod status_item;
@@ -43,6 +44,7 @@ fn main() {
 
         let model = AppModel::init(client_id, state_file, cx);
         dropdown::init(model.clone(), cx);
+        now_playing::init(model.clone(), cx);
 
         let (clicks_tx, mut clicks) = mpsc::unbounded();
         cx.set_global(StatusItem::new(mtm, move || {
