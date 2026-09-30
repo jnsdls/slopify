@@ -1,0 +1,13 @@
+[workspace]
+resolver = "3"
+members = ["app", "crates/auth", "crates/spotify", "crates/state"]
+
+[workspace.package]
+edition = "2024"
+license = "MIT"
+publish = false
+
+[workspace.dependencies]
+slopify-auth = { path = "crates/auth" }
+slopify-spotify = { path = "crates/spotify" }
+slopify-state = { path = "crates/state" }

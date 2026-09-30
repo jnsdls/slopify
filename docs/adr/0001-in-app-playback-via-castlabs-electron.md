@@ -1,5 +1,7 @@
 # In-app playback through the castLabs Electron fork
 
+Superseded by [ADR 0002](0002-player-in-wkwebview-ui-in-gpui.md).
+
 slopify plays audio itself, with Spotify desktop closed. Stock Electron has no Widevine CDM, and Spotify's licence server returns 500 to a CDM carrying only the castLabs development signature, so the app runs on castLabs Electron pinned at `v44.1.0+wvcus` with a production VMP signature from EVS. The pin is deliberate: the licence check ran against this exact build, and any bump has to repeat it.
 
 The packaged app is the only build. The release script refreshes the EVS token from the Keychain, runs `sign-pkg` on the Electron framework inside the bundle, then ad-hoc codesigns. VMP before codesign, or the signature breaks.
