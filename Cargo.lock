@@ -5755,7 +5755,7 @@ dependencies = [
 name = "slopify-auth"
 version = "0.1.0"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "form_urlencoded",
  "log",
  "rand 0.9.5",
