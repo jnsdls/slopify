@@ -1,0 +1,72 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>slopify player</title>
+<script>
+  // A thin shim around one Spotify.Player. Every SDK event goes to Rust as JSON; Rust calls the
+  // functions on window.slopify. The Player's state and logic live in Rust (src/player/).
+  (() => {
+    const post = (message) => window.ipc.postMessage(JSON.stringify(message));
+    const log = (msg) => post({ t: 'log', msg });
+    window.addEventListener('error', (e) => log(`page error: ${e.message}`));
+    window.addEventListener('unhandledrejection', (e) => log(`unhandled rejection: ${e.reason}`));
+
+    let player = null;
+    let nextTokenId = 0;
+    const waitingForToken = new Map();
+
+    const call = (name, ...args) => {
+      if (!player) return Promise.resolve();
+      return player[name](...args).catch((e) => log(`${name} failed: ${(e && e.message) || e}`));
+    };
+
+    window.slopify = {
+      start(volume) {
+        if (player) return;
+        player = new Spotify.Player({
+          name: 'slopify',
+          volume,
+          getOAuthToken: (cb) => {
+            const id = ++nextTokenId;
+            waitingForToken.set(id, cb);
+            post({ t: 'token', id });
+          },
+        });
+        player.addListener('ready', ({ device_id }) => post({ t: 'ready', deviceId: device_id }));
+        player.addListener('not_ready', () => post({ t: 'not-ready' }));
+        player.addListener('player_state_changed', (s) =>
+          post({
+            t: 'state',
+            state: s && {
+              paused: s.paused,
+              position: s.position,
+              duration: s.duration,
+              context: { uri: s.context.uri },
+              track_window: { current_track: s.track_window.current_track },
+            },
+          }),
+        );
+        for (const event of ['initialization_error', 'authentication_error', 'account_error', 'playback_error']) {
+          player.addListener(event, (e) => post({ t: 'error', event, message: (e && e.message) || '' }));
+        }
+        player.addListener('autoplay_failed', () => post({ t: 'error', event: 'autoplay_failed' }));
+        call('connect');
+      },
+      // A null token drops the callback; the SDK reports its own error.
+      token(id, token) {
+        const cb = waitingForToken.get(id);
+        waitingForToken.delete(id);
+        if (cb && token !== null) cb(token);
+      },
+      connect: () => call('connect'),
+      togglePlay: () => call('togglePlay'),
+      resume: () => call('resume'),
+      pause: () => call('pause'),
+      nextTrack: () => call('nextTrack'),
+      previousTrack: () => call('previousTrack'),
+      setVolume: (v) => call('setVolume', v),
+    };
+
+    window.onSpotifyWebPlaybackSDKReady = () => post({ t: 'sdk-loaded' });
+  })();
+</script>
+<script src="https://sdk.scdn.co/spotify-player.js"></script>

@@ -1,12 +1,13 @@
 version: 2
 updates:
-  - package-ecosystem: npm
+  - package-ecosystem: cargo
     directory: /
     schedule:
       interval: monthly
     ignore:
-      # Pinned to the castLabs build the licence check ran against (ADR 0001).
-      - dependency-name: electron
+      # A git dependency pinned to a Zed release tag (ADR 0002); bumped by hand.
+      - dependency-name: gpui
+      - dependency-name: gpui_platform
   - package-ecosystem: github-actions
     directory: /
     schedule:

@@ -13,7 +13,7 @@ body:
     id: build
     attributes:
       label: Build
-      description: Commit you built from, and whether this was `pnpm dev` or the packaged app.
+      description: Commit you built from, and whether this was `cargo run` or the packaged app.
       placeholder: 1bd8edf, packaged
     validations:
       required: true

@@ -10,16 +10,12 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-        with:
-          version: 10
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: pnpm
-      # No EVS Keychain items on the runner, so postinstall skips VMP signing.
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm check
-      - run: pnpm build
+      # Installs the channel and components pinned in rust-toolchain.toml.
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace
+      - run: ./package.sh
         env:
-          MAIN_VITE_SPOTIFY_CLIENT_ID: ci-placeholder
+          SLOPIFY_SPOTIFY_CLIENT_ID: ci-placeholder
