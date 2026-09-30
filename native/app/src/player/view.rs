@@ -1,7 +1,5 @@
 //! The pure rules the Dropdown derives its view from. Ported from the Electron renderer's
-//! `model.ts`; the Dropdown UI (#28) is the caller.
-
-#![allow(dead_code, reason = "the Dropdown UI (#28) calls these")]
+//! `model.ts`.
 
 use slopify_auth::{AuthState, SignedOutReason};
 use slopify_spotify::{BridgeErrorCode, Source};
@@ -28,6 +26,43 @@ pub fn status_of(s: &PlayerState) -> Status {
         Status::Paused
     } else {
         Status::Playing
+    }
+}
+
+/// What the progress area shows in place of the times, and whether it reads as an error.
+pub fn progress_line(s: &PlayerState) -> Option<(String, bool)> {
+    if let Some(message) = &s.message {
+        return Some((message.clone(), true));
+    }
+    match (status_of(s), &s.elsewhere) {
+        (Status::Elsewhere, Some(device)) => Some((format!("Playing on {device}"), false)),
+        (Status::Reconnecting, _) => Some(("Reconnecting".into(), false)),
+        _ => None,
+    }
+}
+
+/// Which controls take input. Play doubles as "take it back" while another device plays.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Controls {
+    pub play: bool,
+    pub next: bool,
+    pub volume: bool,
+}
+
+pub fn controls(status: Status) -> Controls {
+    Controls {
+        play: !matches!(status, Status::Empty | Status::Reconnecting),
+        next: matches!(status, Status::Playing | Status::Paused),
+        volume: matches!(status, Status::Playing | Status::Paused),
+    }
+}
+
+/// How much of the progress bar is filled, 0..=1.
+pub fn progress_fraction(position_ms: u64, duration_ms: u64) -> f32 {
+    if duration_ms == 0 {
+        0.0
+    } else {
+        (position_ms as f64 / duration_ms as f64).min(1.0) as f32
     }
 }
 
@@ -326,6 +361,45 @@ mod tests {
     #[test]
     fn shows_at_least_liked_songs_before_the_list_has_loaded() {
         assert_eq!(picker_rows(&[], None), vec![Source::Liked]);
+    }
+
+    #[test]
+    fn shows_the_message_over_the_other_device_over_reconnecting() {
+        let s = PlayerState {
+            elsewhere: Some("Phone".into()),
+            message: Some("Couldn't play that".into()),
+            ..state()
+        };
+        assert_eq!(progress_line(&s), Some(("Couldn't play that".into(), true)));
+        let s = PlayerState {
+            elsewhere: Some("Phone".into()),
+            ..state()
+        };
+        assert_eq!(progress_line(&s), Some(("Playing on Phone".into(), false)));
+        let s = PlayerState {
+            connected: false,
+            elsewhere: Some("Phone".into()),
+            ..state()
+        };
+        assert_eq!(progress_line(&s), Some(("Reconnecting".into(), false)));
+        assert_eq!(progress_line(&state()), None);
+    }
+
+    #[test]
+    fn enables_controls_by_status() {
+        let c = |play, next, volume| Controls { play, next, volume };
+        assert_eq!(controls(Status::Empty), c(false, false, false));
+        assert_eq!(controls(Status::Reconnecting), c(false, false, false));
+        assert_eq!(controls(Status::Elsewhere), c(true, false, false));
+        assert_eq!(controls(Status::Paused), c(true, true, true));
+        assert_eq!(controls(Status::Playing), c(true, true, true));
+    }
+
+    #[test]
+    fn fills_the_progress_bar_up_to_full() {
+        assert_eq!(progress_fraction(0, 0), 0.0);
+        assert_eq!(progress_fraction(50, 200), 0.25);
+        assert_eq!(progress_fraction(300, 200), 1.0);
     }
 
     #[test]

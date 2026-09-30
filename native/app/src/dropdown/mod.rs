@@ -1,9 +1,12 @@
 use std::time::{Duration, Instant};
 
+mod panel;
+mod paste_field;
+mod theme;
+
 use gpui::{
-    App, Bounds, Context, Entity, FocusHandle, Global, IntoElement, KeyBinding, Render,
-    Subscription, Window, WindowBounds, WindowHandle, WindowKind, WindowOptions, actions, div,
-    point, prelude::*, px, rgb, size,
+    App, AppContext, Bounds, Entity, Global, KeyBinding, Window, WindowBounds, WindowHandle,
+    WindowKind, WindowOptions, actions, point, px, size,
 };
 use objc2::MainThreadMarker;
 use objc2::rc::Retained;
@@ -12,8 +15,7 @@ use objc2_foundation::{NSPoint, NSRect, NSSize};
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 
 use crate::app_model::AppModel;
-use crate::player::format::format_time;
-use crate::player::view::source_name;
+use panel::Panel;
 
 const WIDTH: f64 = 300.0;
 const MIN_HEIGHT: f64 = 120.0;
@@ -26,7 +28,7 @@ actions!(dropdown, [Dismiss, TogglePlay, Next]);
 /// The Dropdown window. Created hidden at launch and never closed, because the UI it holds
 /// outlives any one showing.
 struct Dropdown {
-    window: WindowHandle<Root>,
+    window: WindowHandle<Panel>,
     ns_window: Retained<NSWindow>,
     height: f64,
     hidden_at: Option<Instant>,
@@ -40,6 +42,7 @@ pub fn init(model: Entity<AppModel>, cx: &mut App) {
         KeyBinding::new("space", TogglePlay, Some("Dropdown")),
         KeyBinding::new("right", Next, Some("Dropdown")),
     ]);
+    paste_field::bind_keys(cx);
 
     let options = WindowOptions {
         window_bounds: Some(WindowBounds::Windowed(Bounds {
@@ -57,7 +60,7 @@ pub fn init(model: Entity<AppModel>, cx: &mut App) {
     };
     let window = cx
         .open_window(options, |window, cx| {
-            cx.new(|cx| Root::new(model, window, cx))
+            cx.new(|cx| Panel::new(model, window, cx))
         })
         .expect("the Dropdown window opens");
     let ns_window = window
@@ -104,7 +107,7 @@ fn show(anchor: NSRect, cx: &mut App) {
     let dropdown = cx.global::<Dropdown>();
     let frame = position_under(anchor, dropdown.height, &dropdown.ns_window);
     let window = dropdown.window;
-    let _ = window.update(cx, |root, window, cx| window.focus(&root.focus, cx));
+    let _ = window.update(cx, |panel, window, cx| panel.on_show(window, cx));
     with_ns_window(cx, move |ns_window| {
         ns_window.setFrame_display(frame, true);
         // Activating, as Electron's focus() does, keeps the Dropdown key. A key panel of an
@@ -134,12 +137,9 @@ pub fn hide(cx: &mut App) {
 }
 
 /// Resizes the Dropdown to fit its content, keeping its top edge where it is.
-#[allow(
-    dead_code,
-    reason = "the Dropdown UI (#28) sizes the window to its content"
-)]
 pub fn set_content_height(px: f64, cx: &mut App) {
-    if !px.is_finite() {
+    // The first frame is drawn while `init` is still building the window.
+    if !px.is_finite() || !cx.has_global::<Dropdown>() {
         return;
     }
     let dropdown = cx.global_mut::<Dropdown>();
@@ -219,106 +219,6 @@ fn ns_window(window: &Window) -> Retained<NSWindow> {
     };
     let view = unsafe { handle.ns_view.cast::<NSView>().as_ref() };
     view.window().expect("the GPUI view sits in a window")
-}
-
-struct Root {
-    focus: FocusHandle,
-    model: Entity<AppModel>,
-    _blur: Subscription,
-    _model: Subscription,
-}
-
-impl Root {
-    fn new(model: Entity<AppModel>, window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let blur = cx.observe_window_activation(window, |_, window, cx| {
-            if !window.is_window_active() {
-                hide(cx);
-            }
-        });
-        let observe = cx.observe(&model, |_, _, cx| cx.notify());
-        Self {
-            focus: cx.focus_handle(),
-            model,
-            _blur: blur,
-            _model: observe,
-        }
-    }
-}
-
-/// A placeholder readout of the model until the real Dropdown (#28) replaces it.
-fn debug_lines(model: &AppModel) -> Vec<String> {
-    let p = model.player();
-    let mut lines = vec![format!(
-        "{:?} {}",
-        model.status(),
-        model.display_name().unwrap_or("")
-    )];
-    if let Some(line) = model.sign_in_view().map(|v| v.line) {
-        lines.push(line);
-    }
-    if let Some(track) = &p.track {
-        let artists: Vec<_> = track.artists.iter().map(|a| a.name.as_str()).collect();
-        lines.push(format!("{} - {}", track.name, artists.join(", ")));
-    }
-    lines.push(match (&p.message, &p.elsewhere) {
-        (Some(message), _) => message.clone(),
-        (None, Some(device)) => format!("Playing on {device}"),
-        (None, None) => format!(
-            "{} / {}",
-            format_time(p.position_ms),
-            format_time(p.duration_ms)
-        ),
-    });
-    lines.push(format!(
-        "from {} · volume {:.0}",
-        source_name(p.source.as_ref()),
-        p.volume * 100.0
-    ));
-    lines
-}
-
-impl Render for Root {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        div()
-            .key_context("Dropdown")
-            .track_focus(&self.focus)
-            .on_action(cx.listener(|_, _: &Dismiss, _, cx| hide(cx)))
-            .on_action(cx.listener(|root, _: &TogglePlay, _, cx| {
-                root.model.update(cx, |model, cx| model.toggle_play(cx))
-            }))
-            .on_action(cx.listener(|root, _: &Next, _, cx| {
-                root.model.update(cx, |model, cx| model.next(cx))
-            }))
-            .size_full()
-            .flex()
-            .flex_col()
-            .justify_between()
-            .p_3()
-            .bg(rgb(0x1e1e1e))
-            .text_color(rgb(0xeeeeee))
-            .child(
-                div()
-                    .flex()
-                    .flex_col()
-                    .gap_1()
-                    .text_sm()
-                    .children(debug_lines(self.model.read(cx))),
-            )
-            .child(
-                div().flex().justify_end().child(
-                    div()
-                        .id("quit")
-                        .text_sm()
-                        .text_color(rgb(0xaaaaaa))
-                        .hover(|style| style.text_color(rgb(0xffffff)))
-                        .cursor_pointer()
-                        .on_click(cx.listener(|root, _, _, cx| {
-                            root.model.update(cx, |model, cx| model.quit(cx))
-                        }))
-                        .child("Quit"),
-                ),
-            )
-    }
 }
 
 #[cfg(test)]

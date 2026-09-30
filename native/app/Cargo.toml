@@ -6,6 +6,7 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+anyhow = "1"
 env_logger = "0.11"
 futures = "0.3"
 gpui = { git = "https://github.com/zed-industries/zed", rev = "76659a55a8c10ed355a070f8764a0b1733e3c115" }
@@ -22,4 +23,5 @@ serde_json = "1"
 slopify-auth.workspace = true
 slopify-spotify.workspace = true
 slopify-state.workspace = true
+ureq = "3.4"
 wry = "0.57"
