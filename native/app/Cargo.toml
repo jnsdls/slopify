@@ -15,5 +15,7 @@ log = "0.4"
 objc2 = "0.6"
 objc2-app-kit = "0.3"
 objc2-foundation = "0.3"
+objc2-service-management = { version = "0.3", default-features = false, features = ["std", "objc2", "objc2-foundation", "SMAppService"] }
 raw-window-handle = "0.6"
+slopify-state.workspace = true
 wry = "0.57"

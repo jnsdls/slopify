@@ -1,4 +1,5 @@
 mod dropdown;
+mod login_item;
 mod player_host;
 mod status_item;
 
@@ -13,6 +14,7 @@ use crate::status_item::StatusItem;
 fn main() {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     log::info!("slopify starting");
+    login_item::register_on_first_run(slopify_state::default_path().is_some_and(|p| !p.exists()));
 
     gpui_platform::application().run(|cx: &mut App| {
         let mtm = MainThreadMarker::new().expect("GPUI runs its callback on the main thread");

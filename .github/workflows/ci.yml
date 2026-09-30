@@ -23,3 +23,22 @@ jobs:
       - run: pnpm build
         env:
           MAIN_VITE_SPOTIFY_CLIENT_ID: ci-placeholder
+
+  native:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: native
+    steps:
+      - uses: actions/checkout@v7
+      # Installs the channel and components pinned in native/rust-toolchain.toml.
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: native
+      - run: cargo fmt --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace
+      - run: ./package.sh
+        env:
+          SLOPIFY_SPOTIFY_CLIENT_ID: ci-placeholder
