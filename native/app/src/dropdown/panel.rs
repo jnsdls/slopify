@@ -245,7 +245,7 @@ impl Panel {
                     .rounded(px(4.))
                     .object_fit(ObjectFit::Cover)
                     .into_any_element(),
-                None => icon(Icon::AppIcon, 96.)
+                None => icon(Icon::AppMark, 96.)
                     .text_color(theme.fg.opacity(0.3))
                     .into_any_element(),
             });

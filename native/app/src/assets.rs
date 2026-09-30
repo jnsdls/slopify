@@ -25,7 +25,7 @@ pub enum Icon {
     Heart,
     Chevron,
     Check,
-    AppIcon,
+    AppMark,
     SpotifyLogo,
 }
 
@@ -38,7 +38,7 @@ impl Icon {
         Icon::Heart,
         Icon::Chevron,
         Icon::Check,
-        Icon::AppIcon,
+        Icon::AppMark,
         Icon::SpotifyLogo,
     ];
 
@@ -51,7 +51,7 @@ impl Icon {
             Icon::Heart => "icons/heart.svg",
             Icon::Chevron => "icons/chevron.svg",
             Icon::Check => "icons/check.svg",
-            Icon::AppIcon => "icons/app-icon.svg",
+            Icon::AppMark => "icons/app-icon.svg",
             Icon::SpotifyLogo => "icons/spotify-logo.svg",
         }
     }
@@ -69,7 +69,7 @@ impl Icon {
             ),
             Icon::Chevron => glyph!("M7.4 8.6L12 13.2l4.6-4.6L18 10l-6 6-6-6z"),
             Icon::Check => glyph!("M9 16.2l-3.5-3.5L4 14.2l5 5 12-12-1.4-1.4z"),
-            Icon::AppIcon => include_bytes!("../assets/icons/app-icon.svg"),
+            Icon::AppMark => include_bytes!("../assets/icons/app-icon.svg"),
             Icon::SpotifyLogo => include_bytes!("../assets/icons/spotify-logo.svg"),
         }
     }

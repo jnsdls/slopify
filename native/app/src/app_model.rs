@@ -145,7 +145,7 @@ impl AppModel {
 
     // State
 
-    #[allow(dead_code, reason = "the Dropdown UI (#28) calls this")]
+    #[allow(dead_code, reason = "the Dropdown reads auth through sign_in_view")]
     pub fn auth(&self) -> &AuthState {
         &self.auth
     }
@@ -154,13 +154,12 @@ impl AppModel {
         self.player.state()
     }
 
-    #[allow(dead_code, reason = "the Dropdown UI (#28) calls this")]
+    #[allow(dead_code, reason = "the Dropdown reads it through sign_in_view")]
     pub fn fatal(&self) -> Option<&str> {
         self.player.fatal()
     }
 
     /// Liked Songs first, then playlists. Empty until the first fetch lands.
-    #[allow(dead_code, reason = "the Dropdown UI (#28) calls this")]
     pub fn sources(&self) -> &[Source] {
         &self.sources
     }
@@ -170,7 +169,6 @@ impl AppModel {
     }
 
     /// `None` means the player layout.
-    #[allow(dead_code, reason = "the Dropdown UI (#28) picks its layout from this")]
     pub fn sign_in_view(&self) -> Option<SignInView> {
         view::sign_in_view(&self.auth, self.player.fatal())
     }
@@ -185,7 +183,6 @@ impl AppModel {
     // Actions
 
     /// Opens the browser; the auth state goes to signing-in and then signed-in or signed-out.
-    #[allow(dead_code, reason = "the Dropdown UI (#28) has the sign-in button")]
     pub fn sign_in(&mut self, _cx: &mut Context<Self>) {
         let tokens = self.services.tokens.clone();
         std::thread::spawn(move || tokens.sign_in());
@@ -195,12 +192,10 @@ impl AppModel {
         self.input(|p, _| p.toggle_play(), cx);
     }
 
-    #[allow(dead_code, reason = "Now Playing (#29) wires the media keys")]
     pub fn play(&mut self, cx: &mut Context<Self>) {
         self.input(|p, _| p.play(), cx);
     }
 
-    #[allow(dead_code, reason = "Now Playing (#29) wires the media keys")]
     pub fn pause(&mut self, cx: &mut Context<Self>) {
         self.input(|p, _| p.pause(), cx);
     }
@@ -209,28 +204,22 @@ impl AppModel {
         self.input(|p, _| p.next(), cx);
     }
 
-    #[allow(dead_code, reason = "Now Playing (#29) wires the media keys")]
     pub fn previous(&mut self, cx: &mut Context<Self>) {
         self.input(|p, _| p.previous(), cx);
     }
 
     /// 0..=1. Goes to the SDK at once and to the state file 300 ms after the last change.
-    #[allow(dead_code, reason = "the Dropdown UI (#28) calls this")]
     pub fn set_volume(&mut self, volume: f64, cx: &mut Context<Self>) {
         self.input(|p, now| p.set_volume(volume, now), cx);
     }
 
     /// Plays `source` from its start. Failures show as the transient message.
-    #[allow(dead_code, reason = "the Dropdown UI (#28) calls this")]
     pub fn start_source(&mut self, source: Source, cx: &mut Context<Self>) {
         self.input(|p, _| p.start_source(source), cx);
     }
 
     /// Takes the session back from the device in "Playing on".
-    #[allow(
-        dead_code,
-        reason = "the Dropdown UI (#28) calls this through toggle_play"
-    )]
+    #[allow(dead_code, reason = "the Dropdown reaches it through toggle_play")]
     pub fn transfer_here(&mut self, cx: &mut Context<Self>) {
         self.apply(vec![Effect::TransferHere], cx);
     }
@@ -255,7 +244,6 @@ impl AppModel {
 
     /// Turns a pasted link into a Pasted Playlist. The error is the code for
     /// `view::paste_error_line`; `None` means something other than a bad or hidden link.
-    #[allow(dead_code, reason = "the Picker (#28) has the paste field")]
     pub fn resolve_pasted_link(
         &self,
         text: String,
@@ -276,7 +264,6 @@ impl AppModel {
     }
 
     /// Opens an http(s) link in the default browser.
-    #[allow(dead_code, reason = "the Dropdown UI (#28) links the title and artist")]
     pub fn open_external(&self, url: &str) {
         let lower = url.to_ascii_lowercase();
         if !(lower.starts_with("https://") || lower.starts_with("http://")) {
@@ -562,7 +549,7 @@ fn auth_label(state: &AuthState) -> String {
 
 /// Runs a blocking call on its own thread. The auth and Web API clients block for up to 30 s
 /// (sign-in for minutes), which would starve GPUI's small background pool.
-async fn blocking<R: Send + 'static>(f: impl FnOnce() -> R + Send + 'static) -> R {
+pub(crate) async fn blocking<R: Send + 'static>(f: impl FnOnce() -> R + Send + 'static) -> R {
     let (tx, rx) = oneshot::channel();
     std::thread::spawn(move || {
         let _ = tx.send(f());

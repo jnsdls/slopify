@@ -36,12 +36,10 @@ pub fn spotify_url(uri: &str, kind: &str) -> Option<String> {
     }
 }
 
-#[allow(dead_code, reason = "the Dropdown UI (#28) links the title")]
 pub fn track_url(uri: &str) -> Option<String> {
     spotify_url(uri, "track")
 }
 
-#[allow(dead_code, reason = "the Dropdown UI (#28) links the first artist")]
 pub fn artist_url(uri: &str) -> Option<String> {
     spotify_url(uri, "artist")
 }
