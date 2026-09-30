@@ -1,0 +1,6 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>slopify player</title>
+<script>
+  window.ipc.postMessage(JSON.stringify({ t: 'hello', origin: location.origin, eme: 'requestMediaKeySystemAccess' in navigator }));
+</script>
