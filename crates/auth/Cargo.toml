@@ -9,7 +9,7 @@ publish.workspace = true
 base64 = "0.23"
 form_urlencoded = "1"
 log = "0.4"
-rand = "0.9"
+rand = "0.10"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.11"
