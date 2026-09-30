@@ -1,9 +1,9 @@
 use std::time::{Duration, Instant};
 
 use gpui::{
-    App, Bounds, Context, FocusHandle, Global, IntoElement, KeyBinding, Render, Subscription,
-    Window, WindowBounds, WindowHandle, WindowKind, WindowOptions, actions, div, point, prelude::*,
-    px, rgb, size,
+    App, Bounds, Context, Entity, FocusHandle, Global, IntoElement, KeyBinding, Render,
+    Subscription, Window, WindowBounds, WindowHandle, WindowKind, WindowOptions, actions, div,
+    point, prelude::*, px, rgb, size,
 };
 use objc2::MainThreadMarker;
 use objc2::rc::Retained;
@@ -11,13 +11,17 @@ use objc2_app_kit::{NSApplication, NSScreen, NSView, NSWindow, NSWindowCollectio
 use objc2_foundation::{NSPoint, NSRect, NSSize};
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 
+use crate::app_model::AppModel;
+use crate::player::format::format_time;
+use crate::player::view::source_name;
+
 const WIDTH: f64 = 300.0;
 const MIN_HEIGHT: f64 = 120.0;
 const MAX_HEIGHT: f64 = 560.0;
 const INITIAL_HEIGHT: f64 = 400.0;
 const TOGGLE_DEBOUNCE: Duration = Duration::from_millis(200);
 
-actions!(dropdown, [Dismiss]);
+actions!(dropdown, [Dismiss, TogglePlay, Next]);
 
 /// The Dropdown window. Created hidden at launch and never closed, because the UI it holds
 /// outlives any one showing.
@@ -30,8 +34,12 @@ struct Dropdown {
 
 impl Global for Dropdown {}
 
-pub fn init(cx: &mut App) {
-    cx.bind_keys([KeyBinding::new("escape", Dismiss, Some("Dropdown"))]);
+pub fn init(model: Entity<AppModel>, cx: &mut App) {
+    cx.bind_keys([
+        KeyBinding::new("escape", Dismiss, Some("Dropdown")),
+        KeyBinding::new("space", TogglePlay, Some("Dropdown")),
+        KeyBinding::new("right", Next, Some("Dropdown")),
+    ]);
 
     let options = WindowOptions {
         window_bounds: Some(WindowBounds::Windowed(Bounds {
@@ -48,7 +56,9 @@ pub fn init(cx: &mut App) {
         ..Default::default()
     };
     let window = cx
-        .open_window(options, |window, cx| cx.new(|cx| Root::new(window, cx)))
+        .open_window(options, |window, cx| {
+            cx.new(|cx| Root::new(model, window, cx))
+        })
         .expect("the Dropdown window opens");
     let ns_window = window
         .update(cx, |_, window, cx| {
@@ -213,21 +223,58 @@ fn ns_window(window: &Window) -> Retained<NSWindow> {
 
 struct Root {
     focus: FocusHandle,
+    model: Entity<AppModel>,
     _blur: Subscription,
+    _model: Subscription,
 }
 
 impl Root {
-    fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+    fn new(model: Entity<AppModel>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let blur = cx.observe_window_activation(window, |_, window, cx| {
             if !window.is_window_active() {
                 hide(cx);
             }
         });
+        let observe = cx.observe(&model, |_, _, cx| cx.notify());
         Self {
             focus: cx.focus_handle(),
+            model,
             _blur: blur,
+            _model: observe,
         }
     }
+}
+
+/// A placeholder readout of the model until the real Dropdown (#28) replaces it.
+fn debug_lines(model: &AppModel) -> Vec<String> {
+    let p = model.player();
+    let mut lines = vec![format!(
+        "{:?} {}",
+        model.status(),
+        model.display_name().unwrap_or("")
+    )];
+    if let Some(line) = model.sign_in_view().map(|v| v.line) {
+        lines.push(line);
+    }
+    if let Some(track) = &p.track {
+        let artists: Vec<_> = track.artists.iter().map(|a| a.name.as_str()).collect();
+        lines.push(format!("{} - {}", track.name, artists.join(", ")));
+    }
+    lines.push(match (&p.message, &p.elsewhere) {
+        (Some(message), _) => message.clone(),
+        (None, Some(device)) => format!("Playing on {device}"),
+        (None, None) => format!(
+            "{} / {}",
+            format_time(p.position_ms),
+            format_time(p.duration_ms)
+        ),
+    });
+    lines.push(format!(
+        "from {} · volume {:.0}",
+        source_name(p.source.as_ref()),
+        p.volume * 100.0
+    ));
+    lines
 }
 
 impl Render for Root {
@@ -236,6 +283,12 @@ impl Render for Root {
             .key_context("Dropdown")
             .track_focus(&self.focus)
             .on_action(cx.listener(|_, _: &Dismiss, _, cx| hide(cx)))
+            .on_action(cx.listener(|root, _: &TogglePlay, _, cx| {
+                root.model.update(cx, |model, cx| model.toggle_play(cx))
+            }))
+            .on_action(cx.listener(|root, _: &Next, _, cx| {
+                root.model.update(cx, |model, cx| model.next(cx))
+            }))
             .size_full()
             .flex()
             .flex_col()
@@ -243,7 +296,14 @@ impl Render for Root {
             .p_3()
             .bg(rgb(0x1e1e1e))
             .text_color(rgb(0xeeeeee))
-            .child("slopify")
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap_1()
+                    .text_sm()
+                    .children(debug_lines(self.model.read(cx))),
+            )
             .child(
                 div().flex().justify_end().child(
                     div()
@@ -252,7 +312,9 @@ impl Render for Root {
                         .text_color(rgb(0xaaaaaa))
                         .hover(|style| style.text_color(rgb(0xffffff)))
                         .cursor_pointer()
-                        .on_click(|_, _, cx| cx.quit())
+                        .on_click(cx.listener(|root, _, _, cx| {
+                            root.model.update(cx, |model, cx| model.quit(cx))
+                        }))
                         .child("Quit"),
                 ),
             )

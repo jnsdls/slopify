@@ -5724,6 +5724,10 @@ dependencies = [
  "objc2-foundation 0.3.2",
  "objc2-service-management",
  "raw-window-handle",
+ "serde",
+ "serde_json",
+ "slopify-auth",
+ "slopify-spotify",
  "slopify-state",
  "wry",
 ]

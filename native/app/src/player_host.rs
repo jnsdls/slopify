@@ -66,10 +66,15 @@ pub fn init(cx: &mut App, on_message: impl Fn(String, &mut App) + 'static) -> wr
     Ok(())
 }
 
-/// Runs `js` in the Player page.
-#[allow(dead_code, reason = "the Player (#27) drives the SDK through this")]
-pub fn eval(js: &str, cx: &App) -> wry::Result<()> {
-    cx.global::<PlayerHost>().webview.evaluate_script(js)
+/// Runs `js` in the Player page. Never logs `js`: it can carry an access token.
+pub fn eval(js: &str, cx: &App) {
+    let Some(host) = cx.try_global::<PlayerHost>() else {
+        log::warn!("player host is not running, dropping a command");
+        return;
+    };
+    if let Err(err) = host.webview.evaluate_script(js) {
+        log::error!("player eval failed: {err}");
+    }
 }
 
 fn html(body: &'static str) -> Response<Cow<'static, [u8]>> {
