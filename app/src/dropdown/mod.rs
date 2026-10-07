@@ -1,12 +1,13 @@
 use std::time::{Duration, Instant};
 
+mod backdrop;
 mod panel;
 mod paste_field;
 mod theme;
 
 use gpui::{
-    App, AppContext, Bounds, Entity, Global, KeyBinding, Window, WindowBounds, WindowHandle,
-    WindowKind, WindowOptions, actions, point, px, size,
+    App, AppContext, Bounds, Entity, Global, KeyBinding, Window, WindowBackgroundAppearance,
+    WindowBounds, WindowHandle, WindowKind, WindowOptions, actions, point, px, size,
 };
 use objc2::MainThreadMarker;
 use objc2::rc::Retained;
@@ -56,6 +57,7 @@ pub fn init(model: Entity<AppModel>, cx: &mut App) {
         is_movable: false,
         is_resizable: false,
         is_minimizable: false,
+        window_background: WindowBackgroundAppearance::Transparent,
         ..Default::default()
     };
     let window = cx
@@ -79,6 +81,7 @@ pub fn init(model: Entity<AppModel>, cx: &mut App) {
     ns_window.setCollectionBehavior(
         ns_window.collectionBehavior() | NSWindowCollectionBehavior::Transient,
     );
+    backdrop::install(&ns_window);
 
     cx.set_global(Dropdown {
         window,

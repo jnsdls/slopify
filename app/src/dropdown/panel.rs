@@ -798,7 +798,6 @@ impl Render for Panel {
                 cx.listener(|this, _: &Next, _, cx| this.model.update(cx, |m, cx| m.next(cx))),
             )
             .size_full()
-            .bg(theme.bg)
             .text_color(theme.fg)
             .font_family(".SystemUIFont")
             .text_size(px(13.))
