@@ -1,7 +1,7 @@
 //! The wire between Rust and `player.html`: messages the page posts, and the JavaScript Rust runs
 //! in it. The page holds no state beyond the `Spotify.Player` itself.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use slopify_spotify::Artist;
 
 use super::TrackInfo;
@@ -33,6 +33,21 @@ pub enum PageMessage {
     Log {
         msg: String,
     },
+    /// A media key, AirPods or Control Center, through the SDK iframe's media session.
+    MediaAction {
+        action: MediaAction,
+    },
+}
+
+/// The `navigator.mediaSession` actions `media_session.js` handles.
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum MediaAction {
+    Play,
+    Pause,
+    Stop,
+    NextTrack,
+    PreviousTrack,
 }
 
 impl PageMessage {
@@ -137,6 +152,26 @@ pub fn answer_token(id: u64, token: Option<&str>) -> String {
     format!("slopify.token({id}, {token})")
 }
 
+/// A `MediaMetadataInit` for Now Playing.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct NowPlaying {
+    pub title: String,
+    pub artist: String,
+    pub album: String,
+    pub artwork: Vec<Artwork>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Artwork {
+    pub src: String,
+}
+
+/// Sets Now Playing's metadata. `None` clears it.
+pub fn now_playing(metadata: Option<&NowPlaying>) -> String {
+    let metadata = serde_json::to_string(&metadata).expect("metadata serializes");
+    format!("slopify.nowPlaying({metadata})")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -157,6 +192,37 @@ mod tests {
             PageMessage::parse(r#"{"t":"sdk-loaded"}"#).unwrap(),
             PageMessage::SdkLoaded
         );
+    }
+
+    #[test]
+    fn parses_media_actions() {
+        assert_eq!(
+            PageMessage::parse(r#"{"t":"media-action","action":"nexttrack"}"#).unwrap(),
+            PageMessage::MediaAction {
+                action: MediaAction::NextTrack
+            }
+        );
+        assert_eq!(
+            PageMessage::parse(r#"{"t":"media-action","action":"previoustrack"}"#).unwrap(),
+            PageMessage::MediaAction {
+                action: MediaAction::PreviousTrack
+            }
+        );
+    }
+
+    #[test]
+    fn now_playing_passes_metadata_or_null() {
+        let metadata = NowPlaying {
+            title: "Song \"1\"".into(),
+            artist: "A".into(),
+            album: "Album".into(),
+            artwork: vec![Artwork { src: "big".into() }],
+        };
+        assert_eq!(
+            now_playing(Some(&metadata)),
+            r#"slopify.nowPlaying({"title":"Song \"1\"","artist":"A","album":"Album","artwork":[{"src":"big"}]})"#
+        );
+        assert_eq!(now_playing(None), "slopify.nowPlaying(null)");
     }
 
     #[test]
