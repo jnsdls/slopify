@@ -64,6 +64,12 @@
       nextTrack: () => call('nextTrack'),
       previousTrack: () => call('previousTrack'),
       setVolume: (v) => call('setVolume', v),
+      // The SDK's iframe owns Now Playing; media_session.js there applies this.
+      nowPlaying(metadata) {
+        for (const frame of document.querySelectorAll('iframe')) {
+          frame.contentWindow.postMessage({ slopifyNowPlaying: metadata }, 'https://sdk.scdn.co');
+        }
+      },
     };
 
     window.onSpotifyWebPlaybackSDKReady = () => post({ t: 'sdk-loaded' });

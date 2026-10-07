@@ -6,7 +6,9 @@ slopify becomes a Rust app. The Player stays Spotify's Web Playback SDK, but it 
 
 The Dropdown is drawn with GPUI, taken from the `zed-industries/zed` repository at a pinned release tag (currently `v1.22.0`, commit `76659a5`). The crates.io release is a year stale, and the `gpui-ce` fork has fewer users than Zed itself. Zed only merges what Zed needs, so bumping the pin is a deliberate step and gets tested like one.
 
-The SDK runs in a cross-origin iframe, so WebKit's automatic Now Playing entry says "Spotify Embedded Player" and nothing more. The app owns Now Playing through MediaPlayer.framework instead ([#29](https://github.com/jnsdls/slopify/issues/29)).
+The SDK runs in a cross-origin iframe, so WebKit's automatic Now Playing entry says "Spotify Embedded Player" and nothing more. The app fills that entry in by injecting a script into the iframe that sets `navigator.mediaSession` metadata and action handlers ([#29](https://github.com/jnsdls/slopify/issues/29)).
+
+The first version owned Now Playing through MediaPlayer.framework and hid WebKit's entry with a private WebKit preference. On macOS 27 that preference does nothing, so WebKit's entry took over on the first track change and the media keys stopped working after one press.
 
 ## Considered options
 

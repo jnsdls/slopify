@@ -10,10 +10,10 @@ use futures::StreamExt;
 use futures::channel::mpsc;
 use gpui::{App, Global};
 use objc2::rc::Retained;
-use objc2::runtime::{AnyObject, Bool};
-use objc2::{MainThreadMarker, MainThreadOnly, msg_send, sel};
+use objc2::{MainThreadMarker, MainThreadOnly};
 use objc2_app_kit::{NSBackingStoreType, NSWindow, NSWindowStyleMask};
 use objc2_foundation::{NSPoint, NSRect, NSSize};
+use objc2_web_kit::WKInactiveSchedulingPolicy;
 use raw_window_handle::{
     AppKitWindowHandle, HandleError, HasWindowHandle, RawWindowHandle, WindowHandle,
 };
@@ -23,6 +23,7 @@ use wry::{WebView, WebViewBuilder, WebViewExtMacOS};
 const SCHEME: &str = "slopify";
 const URL: &str = "slopify://player/";
 const PAGE: &str = include_str!("player.html");
+const MEDIA_SESSION: &str = include_str!("media_session.js");
 
 pub struct PlayerHost {
     // Declared first so it drops before the window it lives in.
@@ -44,6 +45,8 @@ pub fn init(cx: &mut App, on_message: impl Fn(String, &mut App) + 'static) -> wr
     let webview = WebViewBuilder::new()
         .with_url(URL)
         .with_autoplay(true)
+        // The SDK's iframe is cross-origin, so only an injected script reaches its media session.
+        .with_initialization_script_for_main_only(MEDIA_SESSION, false)
         .with_custom_protocol(SCHEME.into(), |_id, request| match request.uri().path() {
             "/" => html(PAGE),
             _ => not_found(),
@@ -52,7 +55,7 @@ pub fn init(cx: &mut App, on_message: impl Fn(String, &mut App) + 'static) -> wr
             let _ = tx.unbounded_send(request.into_body());
         })
         .build(&window)?;
-    keep_webkit_out_of_now_playing(&webview);
+    keep_awake_while_hidden(&webview);
 
     cx.spawn(async move |cx| {
         while let Some(message) = messages.next().await {
@@ -79,30 +82,14 @@ pub fn eval(js: &str, cx: &App) {
     }
 }
 
-/// WebKit registers its own Now Playing entry for the SDK's media element, titled with the
-/// iframe's document title and nothing else, and the page can't fix it: the element sits in the
-/// SDK's cross-origin iframe, out of reach of the top frame's `navigator.mediaSession`. The app
-/// owns Now Playing instead (`now_playing`), so WebKit has to stay out of it.
-///
-/// WebKit has no public switch for that. The private `RequiresPageVisibilityForVideoToBeNowPlaying`
-/// preference makes a `<video>` in a hidden page ineligible, and the SDK plays through a `<video>`
-/// in a window that is never shown. It is SPI, so check the selector and carry on without it;
-/// the cost is a second Now Playing entry. A public WebKit setting for this would retire it.
-fn keep_webkit_out_of_now_playing(webview: &WebView) {
-    let setter = sel!(_setRequiresPageVisibilityForVideoToBeNowPlayingForTesting:);
-    let preferences: Retained<AnyObject> = unsafe {
-        let configuration: Retained<AnyObject> = msg_send![&*webview.webview(), configuration];
-        msg_send![&*configuration, preferences]
-    };
-    let supported: bool = unsafe { msg_send![&*preferences, respondsToSelector: setter] };
-    if !supported {
-        log::warn!("WebKit lacks the Now Playing visibility preference; expect a second entry");
-        return;
+/// The page is hidden for good, and WebKit's default policy suspends a hidden page's process soon
+/// after playback pauses. A suspended page never sees the media key that would resume it.
+/// Throttled, it still runs, just less often.
+fn keep_awake_while_hidden(webview: &WebView) {
+    unsafe {
+        let preferences = webview.webview().configuration().preferences();
+        preferences.setInactiveSchedulingPolicy(WKInactiveSchedulingPolicy::Throttle);
     }
-    // The configuration shares its preferences object with the page, so this applies live.
-    let _: () = unsafe {
-        msg_send![&*preferences, _setRequiresPageVisibilityForVideoToBeNowPlayingForTesting: Bool::YES]
-    };
 }
 
 fn html(body: &'static str) -> Response<Cow<'static, [u8]>> {

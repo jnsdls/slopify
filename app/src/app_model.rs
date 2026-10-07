@@ -37,7 +37,7 @@ use slopify_spotify::{
 };
 use slopify_state::StateFile;
 
-use crate::player::page::{PageMessage, SdkCommand, answer_token};
+use crate::player::page::{MediaAction, PageMessage, SdkCommand, answer_token};
 use crate::player::view::{self, SignInView, Status};
 use crate::player::{CommandError, Effect, Player, PlayerState};
 use crate::player_host;
@@ -339,6 +339,15 @@ impl AppModel {
                 .detach();
             }
             PageMessage::Log { msg } => log::warn!("player page: {msg}"),
+            PageMessage::MediaAction { action } => {
+                log::debug!("now playing: {action:?}");
+                match action {
+                    MediaAction::Play => self.play(cx),
+                    MediaAction::Pause | MediaAction::Stop => self.pause(cx),
+                    MediaAction::NextTrack => self.next(cx),
+                    MediaAction::PreviousTrack => self.previous(cx),
+                }
+            }
         }
     }
 
