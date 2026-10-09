@@ -139,6 +139,11 @@ pub fn hide(cx: &mut App) {
     });
 }
 
+fn app_is_active() -> bool {
+    let mtm = MainThreadMarker::new().expect("GPUI runs window callbacks on the main thread");
+    NSApplication::sharedApplication(mtm).isActive()
+}
+
 /// Resizes the Dropdown to fit its content, keeping its top edge where it is.
 pub fn set_content_height(px: f64, cx: &mut App) {
     // The first frame is drawn while `init` is still building the window.
