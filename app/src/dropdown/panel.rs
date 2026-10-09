@@ -53,10 +53,17 @@ impl Panel {
         let paste = cx.new(|cx| PasteField::new("Paste a playlist link", cx));
         let subscriptions = vec![
             cx.observe_window_activation(window, |this, window, cx| {
-                if !window.is_window_active() {
-                    this.close_picker(window, cx);
-                    super::hide(cx);
+                if window.is_window_active() {
+                    return;
                 }
+                // AppKit can take key from the panel while it is still showing it. Only a blur
+                // that also leaves slopify inactive is a click outside.
+                if super::app_is_active() {
+                    log::info!("dropdown: lost key while slopify is active, keeping it open");
+                    return;
+                }
+                this.close_picker(window, cx);
+                super::hide(cx);
             }),
             cx.observe_window_appearance(window, |_, _, cx| cx.notify()),
             cx.observe(&model, |_, _, cx| cx.notify()),
